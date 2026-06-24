@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Circle } from "@phosphor-icons/react";
 import { stripRawProviderThinkingFallback } from "@leadpilot/shared";
 import type { FlueStreamEvent } from "../flue-session";
@@ -134,7 +134,20 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
   }, [session.id]);
 
   const flueSession = useRef(new FlueSession(
-    { host: getAgentHost(), headers: () => ({ "x-leadpilot-client-context": JSON.stringify(buildClientContextPayload({ firmSlug: session.firmSlug, browserSessionId: session.id, sourceUrl: location.href })) }) },
+    {
+      host: getAgentHost(),
+      firmSlug: session.firmSlug,
+      browserSessionId: session.id,
+      headers: () => ({
+        "x-leadpilot-client-context": JSON.stringify(
+          buildClientContextPayload({
+            firmSlug: session.firmSlug,
+            browserSessionId: session.id,
+            sourceUrl: location.href,
+          }),
+        ),
+      }),
+    },
     session.sessionCursor
       ? {
           sessionId: session.sessionCursor.sessionId,
@@ -145,17 +158,41 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
       : undefined,
   ));
 
-  const agent = useFlueAgent({
-    session: flueSession.current,
-    initialEvents: initialEvents.length > 0 ? initialEvents : undefined,
-    onFinish: async (snapshot) => {
-      const userMsg = snapshot.data.messages.find(m => m.role === "user");
-      const assistantMsg = snapshot.data.messages.find(m => m.role === "assistant");
-      const preview = stripRawProviderThinkingFallback(assistantMsg?.parts.find(p => p.type === "text")?.text ?? "");
+  const handleSessionChange = useCallback(
+    (cursor: { streamIndex: number; sessionId?: string }) => {
+      if (!cursor.sessionId) return;
+      const current = session.sessionCursor;
+      if (
+        current?.sessionId === cursor.sessionId &&
+        current.streamIndex === cursor.streamIndex
+      ) {
+        return;
+      }
+      onSessionUpdate({
+        sessionCursor: {
+          ...current,
+          streamIndex: cursor.streamIndex,
+          sessionId: cursor.sessionId,
+        },
+      });
+    },
+    [onSessionUpdate, session.sessionCursor],
+  );
+
+  const handleFinish = useCallback(
+    async (snapshot: {
+      data: { messages: Array<{ role: string; parts: Array<{ type: string; text?: string }> }> };
+      session: { streamIndex: number; sessionId?: string };
+    }) => {
+      const userMsg = snapshot.data.messages.find((m) => m.role === "user");
+      const assistantMsg = snapshot.data.messages.find((m) => m.role === "assistant");
+      const preview = stripRawProviderThinkingFallback(
+        assistantMsg?.parts.find((p) => p.type === "text")?.text ?? "",
+      );
       if (preview) onSessionUpdate({ lastMessagePreview: preview.slice(0, 140) });
       if (userMsg && assistantMsg) {
-        const userText = userMsg.parts.find(p => p.type === "text")?.text ?? "";
-        const assistantText = assistantMsg.parts.find(p => p.type === "text")?.text ?? "";
+        const userText = userMsg.parts.find((p) => p.type === "text")?.text ?? "";
+        const assistantText = assistantMsg.parts.find((p) => p.type === "text")?.text ?? "";
         void persistConversationTurn({
           data: {
             firmSlug: session.firmSlug,
@@ -164,26 +201,25 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
             assistantMessage: assistantText,
             sessionId: flueSession.current.state.sessionId ?? "",
           },
-        }).then((result) => {
-          if (result.conversationId) {
-            onSessionUpdate({ conversationId: result.conversationId });
-          }
-        }).catch((err) => {
-          console.error("[persistConversationTurn] FAILED for", session.id, err);
-        });
+        })
+          .then((result) => {
+            if (result.conversationId) {
+              onSessionUpdate({ conversationId: result.conversationId });
+            }
+          })
+          .catch((err) => {
+            console.error("[persistConversationTurn] FAILED for", session.id, err);
+          });
       }
     },
-    onSessionChange: (cursor) => {
-      if (cursor?.sessionId) {
-        onSessionUpdate({
-          sessionCursor: {
-            ...session.sessionCursor,
-            streamIndex: cursor.streamIndex,
-            sessionId: cursor.sessionId,
-          },
-        });
-      }
-    },
+    [onSessionUpdate, session.firmSlug, session.id],
+  );
+
+  const agent = useFlueAgent({
+    session: flueSession.current,
+    initialEvents: initialEvents.length > 0 ? initialEvents : undefined,
+    onFinish: handleFinish,
+    onSessionChange: handleSessionChange,
   });
 
   async function handleBookingConfirm(dateTime: Date) {

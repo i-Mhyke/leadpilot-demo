@@ -5,10 +5,13 @@ import { useFlueAgent } from "./use-flue-agent";
 
 describe("useFlueAgent", () => {
   it("publishes the active session id after a turn so the chat can resume later", async () => {
-    const session = new FlueSession({ host: "", headers: () => ({}) }, { streamIndex: 4 });
+    const session = new FlueSession(
+      { host: "", headers: () => ({}), firmSlug: "avance", browserSessionId: "browser-1" },
+      { streamIndex: 4 },
+    );
     vi.spyOn(session, "send").mockImplementation(async () => {
-      session.state.sessionId ??= "sess-123";
-      return { sessionId: "sess-123", offset: "-1", result: { text: "What day and time would you prefer?" } };
+      session.state.sessionId = "avance/browser-1";
+      return { sessionId: "avance/browser-1", offset: "-1", result: { text: "What day and time would you prefer?" } };
     });
     const onSessionChange = vi.fn();
 
@@ -26,7 +29,7 @@ describe("useFlueAgent", () => {
     await waitFor(() => {
       expect(onSessionChange).toHaveBeenCalledWith({
         streamIndex: 4,
-        sessionId: "sess-123",
+        sessionId: "avance/browser-1",
       });
     });
 

@@ -50,9 +50,6 @@ function persistFirmSessions(firmSlug: string, firmSessions: DemoSession[]) {
   const others = stored.filter((s) => s.firmSlug !== firmSlug);
   const next = [...others, ...firmSessions];
   writeStorage(SESSIONS_KEY, next);
-  if (typeof window !== "undefined") {
-    console.log("[persistFirmSessions]", firmSlug, "count:", firmSessions.length, "total:", next.length);
-  }
 }
 
 function readActiveSessionMap() {
@@ -127,11 +124,6 @@ export function useDemoSessions(firmSlug: string) {
       storedActive && nextSessions.some((s) => s.id === storedActive)
         ? storedActive
         : nextSessions[0]?.id ?? null;
-
-    console.log("[useDemoSessions] mount:", firmSlug,
-      "stored:", stored.length, "forFirm:", forFirm.length,
-      "next:", nextSessions.length, "active:", active,
-      "found:", forFirm.length > 0 ? "from LS" : "seeded");
 
     setSessions(nextSessions);
     setActiveSessionId(active);

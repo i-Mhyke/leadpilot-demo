@@ -60,8 +60,12 @@ export function useFlueAgent(options: {
   const [error, setError] = useState<{ message: string } | null>(null);
   const aborterRef = useRef<AbortController | null>(null);
   const sessionRef = useRef(options.session);
+  const onSessionChangeRef = useRef(options.onSessionChange);
+  const onFinishRef = useRef(options.onFinish);
   const lastUserMsgRef = useRef<string>("");
   sessionRef.current = options.session;
+  onSessionChangeRef.current = options.onSessionChange;
+  onFinishRef.current = options.onFinish;
 
   useEffect(() => {
     if (options.initialEvents && options.initialEvents.length > 0) {
@@ -69,13 +73,6 @@ export function useFlueAgent(options: {
       setMessages(parseInitialEvents(options.initialEvents));
     }
   }, [options.initialEvents]);
-
-  useEffect(() => {
-    options.onSessionChange?.({
-      streamIndex: sessionRef.current.state.streamIndex,
-      sessionId: sessionRef.current.state.sessionId,
-    });
-  }, [options.onSessionChange]);
 
   const stop = useCallback(() => {
     aborterRef.current?.abort();
@@ -112,12 +109,12 @@ export function useFlueAgent(options: {
         setMessages(prev => [...prev, assistantMsg]);
       }
       setStatus("done");
-      options.onSessionChange?.({
+      onSessionChangeRef.current?.({
         streamIndex: sessionRef.current.state.streamIndex,
         sessionId: sessionRef.current.state.sessionId,
       });
       // Pass both user + assistant messages in onFinish
-      options.onFinish?.({
+      onFinishRef.current?.({
         data: { messages: [userMsg, assistantMsg] },
         session: { streamIndex: sessionRef.current.state.streamIndex, sessionId: sessionRef.current.state.sessionId },
       });
@@ -126,13 +123,13 @@ export function useFlueAgent(options: {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError({ message: msg });
       setStatus("error");
-      options.onSessionChange?.({
+      onSessionChangeRef.current?.({
         streamIndex: sessionRef.current.state.streamIndex,
         sessionId: sessionRef.current.state.sessionId,
       });
       return { sessionId: sessionRef.current.state.sessionId };
     }
-  }, [status, options.onFinish, options.onSessionChange]);
+  }, [status]);
 
   return { status, data: { messages }, events, error, send, stop };
 }

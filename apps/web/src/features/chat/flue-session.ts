@@ -37,29 +37,40 @@ export interface ClientSession {
 export class FlueSession {
   state: SessionState;
   private host: string;
+  private getHeaders: () => Record<string, string>;
+  private agentInstanceId: string;
 
   constructor(
-    _options: { host: string; headers: () => Record<string, string> },
+    options: {
+      host: string;
+      headers: () => Record<string, string>;
+      firmSlug: string;
+      browserSessionId: string;
+    },
     initialState?: Partial<SessionState>,
   ) {
-    this.host = _options.host;
-    this.state = { streamIndex: 0, ...initialState };
+    this.host = options.host;
+    this.getHeaders = options.headers;
+    this.agentInstanceId = `${options.firmSlug}/${options.browserSessionId}`;
+    this.state = {
+      streamIndex: 0,
+      sessionId: initialState?.sessionId ?? this.agentInstanceId,
+      ...initialState,
+    };
   }
 
   async send<TOutput = unknown>(input: SendTurnInput<TOutput>) {
     const payload = typeof input === "string" ? { message: input } : input;
-    // Reuse existing sessionId for context persistence across messages,
-    // or generate one on the first call.
-    if (!this.state.sessionId) {
-      this.state.sessionId = crypto.randomUUID();
-    }
-    const id = this.state.sessionId;
+    const id = this.agentInstanceId;
+    this.state.sessionId = id;
     const base = this.host || "";
-    console.log("[FlueSession] POST to", `${base}/agents/leadpilot/${id}?wait=result`, "sessionId:", id);
     const url = `${base}/agents/leadpilot/${encodeURIComponent(id)}?wait=result`;
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...this.getHeaders(),
+      },
       body: JSON.stringify(
         payload.inputResponses !== undefined || payload.clientContext !== undefined
           ? {
@@ -75,13 +86,10 @@ export class FlueSession {
       throw new Error(`Agent error (${response.status}): ${text}`);
     }
     const data = await response.json();
-    console.log("[FlueSession] POST response:", data);
     return { sessionId: id, offset: data.offset || "-1", result: data.result };
   }
 
   async *stream(_options?: { signal?: AbortSignal }): AsyncGenerator<FlueStreamEvent> {
-    // Streaming not used - using ?wait=result instead
-    console.log("[FlueSession] stream() called but using wait=result mode");
     return;
   }
 }

@@ -1,9 +1,24 @@
 export const LEADPILOT_CORS_HEADERS = ["content-type", "x-leadpilot-client-context"].join(", ");
 
+function allowedOrigins(): string[] | null {
+  const raw = process.env.LEADPILOT_ALLOWED_ORIGINS?.trim();
+  if (!raw) return null;
+  return raw.split(",").map((value) => value.trim()).filter(Boolean);
+}
+
 export function resolveCorsAllowedOrigin(request: Request): string | null {
   const origin = request.headers.get("Origin");
-  if (process.env.LEADPILOT_PUBLIC_CHAT === "true") return origin ?? "*";
-  return origin || null;
+  if (!origin) {
+    return process.env.LEADPILOT_PUBLIC_CHAT === "true" ? "*" : null;
+  }
+
+  const allowlist = allowedOrigins();
+  if (allowlist) {
+    return allowlist.includes(origin) ? origin : null;
+  }
+
+  if (process.env.LEADPILOT_PUBLIC_CHAT === "true") return origin;
+  return origin;
 }
 
 export function corsPreflightResponse(request: Request): Response {

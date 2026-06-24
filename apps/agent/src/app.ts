@@ -3,17 +3,27 @@ import { flue } from '@flue/runtime/routing';
 import { Hono } from 'hono';
 import { registerObservability } from './instrumentation.ts';
 import { parseClientContextHeader } from './agent/lib/client-context.ts';
+import { corsPreflightResponse, LEADPILOT_CORS_HEADERS, resolveCorsAllowedOrigin } from './agent/lib/cors.ts';
 import { logLeadPilotEvent } from './agent/lib/observability.ts';
 
 registerObservability();
 
 const app = new Hono();
 
-app.get('/health', (c) => c.json({ ok: true, service: 'leadpilot-flue' }));
-
-app.options('/api/leadpilot/chat', (c) => {
-  return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'content-type, x-leadpilot-client-context', 'Access-Control-Max-Age': '86400' } });
+app.use('*', async (c, next) => {
+  if (c.req.method === 'OPTIONS') {
+    return corsPreflightResponse(c.req.raw);
+  }
+  await next();
+  const origin = resolveCorsAllowedOrigin(c.req.raw);
+  if (origin) {
+    c.header('Access-Control-Allow-Origin', origin);
+    c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    c.header('Access-Control-Allow-Headers', LEADPILOT_CORS_HEADERS);
+  }
 });
+
+app.get('/health', (c) => c.json({ ok: true, service: 'leadpilot-flue' }));
 
 app.post('/api/leadpilot/chat', async (c) => {
   const clientContext = parseClientContextHeader(c.req.raw);
