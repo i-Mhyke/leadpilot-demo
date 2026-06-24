@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ChatRequestError, parsePersistChatSessionCursorRequest } from "./validators";
+import {
+  ChatRequestError,
+  parseBookingSelectionRequest,
+  parsePersistChatSessionCursorRequest,
+} from "./validators";
 
 describe("parsePersistChatSessionCursorRequest", () => {
   it("accepts resumable Eve session cursors", () => {
@@ -54,5 +58,35 @@ describe("parsePersistChatSessionCursorRequest", () => {
         needsReconciliation: true,
       },
     });
+  });
+});
+
+describe("parseBookingSelectionRequest", () => {
+  it("accepts structured booking datetime selections", () => {
+    expect(
+      parseBookingSelectionRequest({
+        browserSessionId: "browser-1",
+        firmSlug: "demo-law",
+        preferredBookingAt: "2026-06-24T14:30:00.000Z",
+        preferredBookingLabel: "Wednesday, June 24, 2026 at 2:30 PM",
+        sessionId: "sess-1",
+      }),
+    ).toEqual({
+      browserSessionId: "browser-1",
+      firmSlug: "demo-law",
+      preferredBookingAt: "2026-06-24T14:30:00.000Z",
+      preferredBookingLabel: "Wednesday, June 24, 2026 at 2:30 PM",
+      sessionId: "sess-1",
+    });
+  });
+
+  it("rejects missing booking datetimes", () => {
+    expect(() =>
+      parseBookingSelectionRequest({
+        browserSessionId: "browser-1",
+        firmSlug: "demo-law",
+        sessionId: "sess-1",
+      }),
+    ).toThrow(ChatRequestError);
   });
 });

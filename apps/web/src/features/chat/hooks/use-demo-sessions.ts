@@ -24,6 +24,11 @@ export type DemoSession = {
 
 const SESSIONS_KEY = "leadpilot.demo.sessions";
 const ACTIVE_KEY = "leadpilot.demo.activeSessionId";
+const LEGACY_SEED_SIGNATURES = new Set([
+  "Amara Okonkwo|SAFE notes, seed round",
+  "Theo Whitfield|NDPR readiness review",
+  "Priya Mehta|Remittance API licensing",
+]);
 
 function readStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -69,25 +74,23 @@ function seedSessions(firmSlug: string): DemoSession[] {
     {
       id: crypto.randomUUID(),
       firmSlug,
-      customerName: "Amara Okonkwo",
-      matterLabel: "SAFE notes, seed round",
-      updatedAt: now,
-    },
-    {
-      id: crypto.randomUUID(),
-      firmSlug,
-      customerName: "Theo Whitfield",
-      matterLabel: "NDPR readiness review",
-      updatedAt: now,
-    },
-    {
-      id: crypto.randomUUID(),
-      firmSlug,
-      customerName: "Priya Mehta",
-      matterLabel: "Remittance API licensing",
+      customerName: CHAT_COPY.newSessionCustomer,
+      matterLabel: CHAT_COPY.newSessionMatter,
       updatedAt: now,
     },
   ];
+}
+
+function isLegacySeedSession(session: DemoSession) {
+  return LEGACY_SEED_SIGNATURES.has(`${session.customerName}|${session.matterLabel}`);
+}
+
+function normalizeFirmSessions(firmSlug: string, firmSessions: DemoSession[]) {
+  const filtered = firmSessions.filter((session) => !isLegacySeedSession(session));
+  if (filtered.length > 0) {
+    return filtered;
+  }
+  return seedSessions(firmSlug);
 }
 
 export function removeDemoSessionFromList(
@@ -117,7 +120,7 @@ export function useDemoSessions(firmSlug: string) {
   useEffect(() => {
     const stored = readStorage<DemoSession[]>(SESSIONS_KEY, []);
     const forFirm = stored.filter((s) => s.firmSlug === firmSlug);
-    const nextSessions = forFirm.length > 0 ? forFirm : seedSessions(firmSlug);
+    const nextSessions = normalizeFirmSessions(firmSlug, forFirm);
     const activeMap = readActiveSessionMap();
     const storedActive = activeMap[firmSlug] ?? null;
     const active =
@@ -134,7 +137,7 @@ export function useDemoSessions(firmSlug: string) {
     setActiveSessionId(active);
     setHydrated(true);
 
-    if (forFirm.length === 0) {
+    if (forFirm.length === 0 || nextSessions.length !== forFirm.length) {
       persistFirmSessions(firmSlug, nextSessions);
     }
     if (active) writeActiveSessionId(firmSlug, active);

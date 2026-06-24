@@ -37,10 +37,12 @@ export interface FirmConversationLead {
   conversationId: string;
   visitorId: string;
   visitorLabel: string;
+  visitorName?: string;
   visitorEmail?: string;
   visitorPhone?: string;
   companyName?: string;
   matterSummary?: string;
+  preferredBookingAt?: string;
   phase: DashboardRecentConversation["phase"];
   status: DashboardRecentConversation["status"];
   sourceUrl?: string;
@@ -70,6 +72,7 @@ export interface BookingRequestItem {
   visitorEmail?: string;
   visitorPhone?: string;
   companyName?: string;
+  preferredBookingAt?: string;
   matterSummary: string;
   leadBrief: string;
   preferredTimeText?: string;

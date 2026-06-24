@@ -46,11 +46,12 @@ export class FlueSession {
     this.state = { streamIndex: 0, ...initialState };
   }
 
-  async send(message: string) {
+  async send<TOutput = unknown>(input: SendTurnInput<TOutput>) {
+    const payload = typeof input === "string" ? { message: input } : input;
     // Reuse existing sessionId for context persistence across messages,
     // or generate one on the first call.
     if (!this.state.sessionId) {
-      this.state.sessionId = `demo-law/${crypto.randomUUID()}`;
+      this.state.sessionId = crypto.randomUUID();
     }
     const id = this.state.sessionId;
     const base = this.host || "";
@@ -59,7 +60,15 @@ export class FlueSession {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(
+        payload.inputResponses !== undefined || payload.clientContext !== undefined
+          ? {
+              message: payload.message,
+              inputResponses: payload.inputResponses,
+              clientContext: payload.clientContext,
+            }
+          : { message: payload.message },
+      ),
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");

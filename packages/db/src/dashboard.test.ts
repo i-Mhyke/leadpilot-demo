@@ -178,6 +178,7 @@ describe("firm dashboard read model", () => {
         lead_score: 72,
         lead_summary: "Founder exploring seed terms",
         booking_status: "requested",
+        preferred_booking_at: "2026-01-02T10:30:00.000Z",
       },
     ]);
     setSqlForTests(sql as never);
@@ -189,6 +190,7 @@ describe("firm dashboard read model", () => {
       expect(result.leads[0]?.topics).toContain("SAFE notes");
       expect(result.leads[0]?.lead?.score).toBe(72);
       expect(result.leads[0]?.bookingStatus).toBe("requested");
+      expect(result.leads[0]?.preferredBookingAt).toBe("2026-01-02T10:30:00.000Z");
     }
   });
 
@@ -236,6 +238,7 @@ describe("firm dashboard read model", () => {
         preferred_time_text: "Next Tuesday morning",
         urgency: "medium",
         created_at: "2026-01-02T00:00:00.000Z",
+        preferred_booking_at: "2026-01-02T10:30:00.000Z",
       },
     ]);
     setSqlForTests(sql as never);
@@ -246,6 +249,7 @@ describe("firm dashboard read model", () => {
       expect(result.bookings).toHaveLength(1);
       expect(result.bookings[0]?.id).toBe("booking-1");
       expect(result.bookings[0]?.conversationId).toBe("conv-1");
+      expect(result.bookings[0]?.preferredBookingAt).toBe("2026-01-02T10:30:00.000Z");
     }
     expect(sql).toHaveBeenCalledTimes(1);
   });

@@ -12,11 +12,11 @@ export function DashboardPageHeader({
   title: string;
   description?: string;
   actions?: ReactNode;
-  enterIndex?: number;
+  enterIndex?: 0 | number;
 }) {
   return (
     <header
-      className={`border-border/60 flex flex-col gap-3 border-b px-4 py-5 sm:flex-row sm:items-start sm:justify-between md:px-6 ${dashboardEnterClass(enterIndex)}`}
+      className={`border-border/50 flex flex-col gap-4 border-b px-5 py-6 md:px-7 md:py-7 lg:flex-row lg:items-end lg:justify-between ${dashboardEnterClass(enterIndex)}`}
     >
       <div className="min-w-0">
         {eyebrow ? (
@@ -25,12 +25,12 @@ export function DashboardPageHeader({
           </span>
         ) : null}
         <h2
-          className={`text-foreground font-semibold tracking-tight ${eyebrow ? "mt-1.5" : ""} text-base`}
+          className={`text-foreground font-semibold tracking-tight ${eyebrow ? "mt-1.5" : ""} text-2xl md:text-[1.75rem]`}
         >
           {title}
         </h2>
         {description ? (
-          <p className="text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed">{description}</p>
+          <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

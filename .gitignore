@@ -46,6 +46,10 @@ __pycache__/
 # Local agent / browser tooling
 .playwright-mcp/
 
+# Demo knowledge base (scraped company profiles - not deployed)
+demos_kb/
+leads/
+
 # Logs
 *.log
 npm-debug.log*

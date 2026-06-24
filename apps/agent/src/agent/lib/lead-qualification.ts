@@ -43,19 +43,25 @@ export function formatLeadModelOutput(output: { nextAction: LeadNextAction; pers
 }
 
 export function formatBookingFailureModelOutput(missingFields: string[]): string {
-  return `Booking request not captured. Missing required fields: ${missingFields.join(", ")}.`;
+  const humanFields = missingFields.map((field) => {
+    switch (field) {
+      case "preferred_booking_at":
+        return "preferred booking date and time";
+      case "company_name":
+        return "company name";
+      default:
+        return field.replace(/_/g, " ");
+    }
+  });
+  return `Booking request not captured. Missing required fields: ${humanFields.join(", ")}.`;
 }
 
 export function formatBookingNeedsLeadModelOutput(): string {
   return "Booking request not captured. Call upsert_lead first.";
 }
 
-export function formatBookingSuccessModelOutput(input: { optionalFieldsMissing: { phone: boolean; preferredTime: boolean } }): string {
-  const missing = [];
-  if (input.optionalFieldsMissing.phone) missing.push("phone");
-  if (input.optionalFieldsMissing.preferredTime) missing.push("preferred time");
-  const suffix = missing.length > 0 ? ` Optional: ${missing.join(", ")}` : "";
-  return `Booking request captured. Appointment is not confirmed.${suffix}`;
+export function formatBookingSuccessModelOutput(_input: { optionalFieldsMissing: { phone: boolean; preferredTime: boolean } }): string {
+  return "Booking request captured. Appointment is not confirmed. If you'd like, ask for company name, phone number, urgency, or any other context that will help the associate prepare.";
 }
 
 export function formatReadinessModelOutput(output: ConversationReadiness & { nextAction: LeadNextAction }): string {

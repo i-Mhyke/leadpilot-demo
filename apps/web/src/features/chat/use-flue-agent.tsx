@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FlueSession, type FlueStreamEvent } from "./flue-session";
+import { shouldShowBookingScheduleButton } from "./booking-datetime";
+import { FlueSession, type FlueStreamEvent, type SendTurnInput } from "./flue-session";
 
 export type EveTextPart = { type: "text"; text: string };
 export type EveToolCallPart = {
@@ -69,14 +70,21 @@ export function useFlueAgent(options: {
     }
   }, [options.initialEvents]);
 
+  useEffect(() => {
+    options.onSessionChange?.({
+      streamIndex: sessionRef.current.state.streamIndex,
+      sessionId: sessionRef.current.state.sessionId,
+    });
+  }, [options.onSessionChange]);
+
   const stop = useCallback(() => {
     aborterRef.current?.abort();
     setStatus("idle");
   }, []);
 
-  const send = useCallback(async (input: string | { message: string }) => {
+  const send = useCallback(async (input: SendTurnInput) => {
     if (status === "submitted" || status === "streaming") return;
-    const message = typeof input === "string" ? input : input.message;
+    const message = typeof input === "string" ? input : input.message ?? "";
     setError(null);
     setStatus("submitted");
 
@@ -88,27 +96,43 @@ export function useFlueAgent(options: {
     aborterRef.current = aborter;
 
     try {
-      const result = await sessionRef.current.send(message);
+      const result = await sessionRef.current.send(input);
       const responseText =
         (result as any)?.result?.text ||
         (result as any)?.text ||
         "";
-      const assistantMsg: EveMessage = { role: "assistant", parts: [{ type: "text", text: responseText }] };
+      const assistantMsg: EveMessage = {
+        role: "assistant",
+        parts: [{ type: "text", text: responseText }],
+        metadata: shouldShowBookingScheduleButton(responseText)
+          ? { ui: { bookingScheduleRequested: true } }
+          : undefined,
+      };
       if (responseText) {
         setMessages(prev => [...prev, assistantMsg]);
       }
       setStatus("done");
+      options.onSessionChange?.({
+        streamIndex: sessionRef.current.state.streamIndex,
+        sessionId: sessionRef.current.state.sessionId,
+      });
       // Pass both user + assistant messages in onFinish
       options.onFinish?.({
         data: { messages: [userMsg, assistantMsg] },
         session: { streamIndex: sessionRef.current.state.streamIndex, sessionId: sessionRef.current.state.sessionId },
       });
+      return { sessionId: sessionRef.current.state.sessionId };
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError({ message: msg });
       setStatus("error");
+      options.onSessionChange?.({
+        streamIndex: sessionRef.current.state.streamIndex,
+        sessionId: sessionRef.current.state.sessionId,
+      });
+      return { sessionId: sessionRef.current.state.sessionId };
     }
-  }, [status, options.onFinish]);
+  }, [status, options.onFinish, options.onSessionChange]);
 
   return { status, data: { messages }, events, error, send, stop };
 }

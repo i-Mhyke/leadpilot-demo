@@ -1,3 +1,5 @@
+import type { FirmBrainConfig } from "@leadpilot/shared";
+
 export const CHAT_COPY = {
   shellTitle: "LeadPilot",
   shellSubtitle: (firmName: string) => `${firmName} - client conversations`,
@@ -9,13 +11,8 @@ export const CHAT_COPY = {
   emptyChat: "Send a message to get started.",
   emptyStateTitle: "Ask before you book a call",
   emptyStateBody:
-    "Describe your startup situation in plain language. You will get general information on formation, fundraising, data protection, or licensing—not legal advice, and not an attorney-client relationship.",
+    "Describe your situation in plain language. You will get general information shaped by this company's public profile, not legal advice, and not an attorney-client relationship.",
   suggestedPromptsLabel: "Start with a question",
-  suggestedPrompts: [
-    "We're raising on SAFE notes—what should we know about Nigerian law?",
-    "We're launching B2B SaaS in Lagos. What NDPR paperwork do we need?",
-    "We're building a remittance API. Which CBN licenses apply?",
-  ],
   composerPlaceholder: "Describe your situation in plain language…",
   status: {
     idle: "Ready",
@@ -35,3 +32,47 @@ export const CHAT_COPY = {
   toolRunning: "Checking sources",
   toolComplete: "Done",
 } as const;
+
+export type AskPageCopy = {
+  emptyStateTitle: string;
+  emptyStateBody: string;
+  suggestedPromptsLabel: string;
+  suggestedPrompts: string[];
+  composerPlaceholder: string;
+};
+
+const DEFAULT_ASK_COPY: AskPageCopy = {
+  emptyStateTitle: CHAT_COPY.emptyStateTitle,
+  emptyStateBody: CHAT_COPY.emptyStateBody,
+  suggestedPromptsLabel: CHAT_COPY.suggestedPromptsLabel,
+  suggestedPrompts: [
+    "What should we prepare before the first call?",
+    "Which details decide whether this is a fit?",
+    "What would make this request urgent enough to escalate?",
+  ],
+  composerPlaceholder: CHAT_COPY.composerPlaceholder,
+};
+
+function cleanLabel(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export function resolveAskPageCopy(input: {
+  firmName: string;
+  brainConfig: FirmBrainConfig | null;
+}): AskPageCopy {
+  const firmName = cleanLabel(input.firmName);
+  const persistedQuestions = input.brainConfig?.compiled.suggestedQuestions?.map(cleanLabel).filter(Boolean) ?? [];
+
+  return {
+    emptyStateTitle: firmName ? `Ask ${firmName} before you book a call` : DEFAULT_ASK_COPY.emptyStateTitle,
+    emptyStateBody:
+      `Describe your business situation in plain language. You will get intake guidance shaped by ${firmName || "this company"}'s public profile—not legal advice, and not an attorney-client relationship.`,
+    suggestedPromptsLabel: DEFAULT_ASK_COPY.suggestedPromptsLabel,
+    suggestedPrompts:
+      persistedQuestions.length >= 3
+        ? persistedQuestions.slice(0, 3)
+        : DEFAULT_ASK_COPY.suggestedPrompts,
+    composerPlaceholder: DEFAULT_ASK_COPY.composerPlaceholder,
+  };
+}

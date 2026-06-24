@@ -2,6 +2,7 @@ import type { FirmBrainSnapshot } from "@leadpilot/shared";
 
 export function brainContextForModel(snapshot: FirmBrainSnapshot): string[] {
   const compiled = snapshot.compiled;
+  const qualificationHints = compiled.qualificationHints ?? [];
   const lines: string[] = [
     `Brain revision: ${snapshot.revision}`,
     `Brain hash: ${snapshot.contentHash}`,
@@ -27,6 +28,9 @@ export function brainContextForModel(snapshot: FirmBrainSnapshot): string[] {
   }
   if (compiled.qualificationPosture.length > 0) {
     lines.push(`Qualification posture: ${compiled.qualificationPosture.join(" | ")}`);
+  }
+  if (qualificationHints.length > 0) {
+    lines.push(`Qualification hints: ${qualificationHints.join(" | ")}`);
   }
   if (compiled.escalationRules.length > 0) {
     lines.push(`Escalation rules: ${compiled.escalationRules.join(" | ")}`);

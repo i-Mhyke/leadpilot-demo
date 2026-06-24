@@ -1,25 +1,113 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Circle } from "@phosphor-icons/react";
 import { stripRawProviderThinkingFallback } from "@leadpilot/shared";
 import type { FlueStreamEvent } from "../flue-session";
 import { FlueSession } from "../flue-session";
 import { useFlueAgent } from "../use-flue-agent";
-import { getChatHistory, persistConversationTurn } from "../chat-actions";
-import { assistantMessageText, chatErrorMessageForVisitor } from "../chat-utils";
+import { getChatHistory, persistBookingSelection, persistConversationTurn } from "../chat-actions";
+import { assistantMessageText, chatErrorMessageForVisitor, CHAT_MOTION } from "../chat-utils";
 import { CHAT_COPY } from "../copy";
 import { ChatComposer } from "./chat-composer";
 import { ChatErrorBanner } from "./chat-error-banner";
 import { ChatMessage } from "./chat-message";
-import { ChatPanel } from "./chat-panel";
-import { ChatStatusBar } from "./chat-status-bar";
 import { getAgentHost } from "@/lib/agent-host";
 import { buildClientContextPayload } from "@/lib/leadpilot-client-context";
+import { buildBookingMessage, formatBookingDateTimeLabel } from "../booking-datetime";
 import { ChatTypingIndicator } from "./chat-typing-indicator";
 import type { DemoSession } from "../hooks/use-demo-sessions";
+import type { AskPageCopy } from "../copy";
+import { cn } from "@/lib/utils";
+import { shouldShowBookingScheduleButton } from "../booking-datetime";
 
-export function ChatThread({ session, onSessionUpdate, onStartNewConversation }: {
+function ThreadHeader({
+  title,
+  subtitle,
+  status,
+}: {
+  title: string;
+  subtitle: string;
+  status?: "idle" | "submitted" | "streaming" | "error" | "done";
+}) {
+  const isLive = status === "streaming" || status === "submitted";
+
+  return (
+    <div className="border-border/50 flex shrink-0 items-center justify-between gap-4 border-b px-5 py-4 md:px-7">
+      <div className="min-w-0">
+        <p className="text-foreground truncate text-sm font-semibold tracking-tight">{title}</p>
+        <p className="text-muted-foreground mt-0.5 truncate text-xs">{subtitle}</p>
+      </div>
+      {status && status !== "idle" && status !== "done" ? (
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
+            status === "error"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {isLive ? <Circle className="size-2 fill-current animate-pulse" weight="fill" /> : null}
+          <span>{CHAT_COPY.status[status]}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SuggestedPrompts({
+  copy,
+  disabled,
+  onSelect,
+}: {
+  copy: AskPageCopy;
+  disabled: boolean;
+  onSelect: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-muted-foreground text-[11px] font-medium tracking-[0.12em] uppercase">
+        {copy.suggestedPromptsLabel}
+      </p>
+      <div className="divide-border/60 divide-y rounded-xl border border-border/50">
+        {copy.suggestedPrompts.map((prompt, index) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => onSelect(prompt)}
+            disabled={disabled}
+            className={cn(
+              "hover:bg-muted/40 text-foreground flex w-full items-start gap-3 px-4 py-3.5 text-left text-sm leading-relaxed first:rounded-t-xl last:rounded-b-xl",
+              CHAT_MOTION,
+              "active:scale-[0.995] disabled:opacity-60",
+            )}
+          >
+            <span className="text-muted-foreground mt-0.5 shrink-0 font-mono text-[11px] tabular-nums">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span>{prompt}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComposerFooter({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-border/50 bg-[#fbfbfc] shrink-0 border-t px-4 py-4 md:px-7 md:py-5">
+      <div className="mx-auto w-full max-w-2xl">{children}</div>
+    </div>
+  );
+}
+
+export function ChatThread({ session, onSessionUpdate, onStartNewConversation, copy }: {
   session: DemoSession;
   onSessionUpdate: (patch: Partial<DemoSession>) => void;
   onStartNewConversation?: () => void;
+  copy: AskPageCopy;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [initialEvents, setInitialEvents] = useState<FlueStreamEvent[]>([]);
@@ -47,7 +135,14 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation }:
 
   const flueSession = useRef(new FlueSession(
     { host: getAgentHost(), headers: () => ({ "x-leadpilot-client-context": JSON.stringify(buildClientContextPayload({ firmSlug: session.firmSlug, browserSessionId: session.id, sourceUrl: location.href })) }) },
-    undefined,
+    session.sessionCursor
+      ? {
+          sessionId: session.sessionCursor.sessionId,
+          streamIndex: session.sessionCursor.streamIndex,
+          continuationToken: session.sessionCursor.continuationToken,
+          needsReconciliation: session.sessionCursor.needsReconciliation,
+        }
+      : undefined,
   ));
 
   const agent = useFlueAgent({
@@ -69,126 +164,176 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation }:
             assistantMessage: assistantText,
             sessionId: flueSession.current.state.sessionId ?? "",
           },
-        }).then(() => {
-          console.log("[persistConversationTurn] saved turn for", session.id);
+        }).then((result) => {
+          if (result.conversationId) {
+            onSessionUpdate({ conversationId: result.conversationId });
+          }
         }).catch((err) => {
           console.error("[persistConversationTurn] FAILED for", session.id, err);
         });
       }
     },
     onSessionChange: (cursor) => {
-      if (cursor?.sessionId) onSessionUpdate({ sessionCursor: { streamIndex: cursor.streamIndex, sessionId: cursor.sessionId } });
+      if (cursor?.sessionId) {
+        onSessionUpdate({
+          sessionCursor: {
+            ...session.sessionCursor,
+            streamIndex: cursor.streamIndex,
+            sessionId: cursor.sessionId,
+          },
+        });
+      }
     },
   });
 
+  async function handleBookingConfirm(dateTime: Date) {
+    const preferredBookingAt = dateTime.toISOString();
+    const preferredBookingLabel = formatBookingDateTimeLabel(dateTime);
+    const existingSessionId = flueSession.current.state.sessionId;
+    if (existingSessionId) {
+      await persistBookingSelection({
+        data: {
+          firmSlug: session.firmSlug,
+          browserSessionId: session.id,
+          sessionId: existingSessionId,
+          preferredBookingAt,
+          preferredBookingLabel,
+        },
+      });
+    }
+
+    const sendResult = await agent.send({
+      message: buildBookingMessage(dateTime),
+      inputResponses: [
+        {
+          type: "booking_datetime",
+          preferredBookingAt,
+          preferredBookingLabel,
+        },
+      ],
+    });
+    const sessionId = existingSessionId ?? sendResult?.sessionId ?? flueSession.current.state.sessionId;
+    if (!existingSessionId && sessionId) {
+      await persistBookingSelection({
+        data: {
+          firmSlug: session.firmSlug,
+          browserSessionId: session.id,
+          sessionId,
+          preferredBookingAt,
+          preferredBookingLabel,
+        },
+      });
+    }
+  }
+
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [agent.data.messages, agent.status]);
 
-  if (loading) return (
-    <section className="bg-card flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border/60 shrink-0 border-b px-4 py-3.5 md:px-8">
-        <p className="text-foreground text-sm font-semibold tracking-tight">{session.customerName}</p>
-        <p className="text-muted-foreground mt-0.5 text-xs">{session.matterLabel}</p>
-      </div>
-    </section>
-  );
+  if (loading) {
+    return (
+      <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+        <ThreadHeader title={session.customerName} subtitle={session.matterLabel} />
+        <div className="min-h-0 flex-1" aria-hidden />
+      </section>
+    );
+  }
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const hasError = agent.status === "error" || Boolean(agent.error?.message);
   const isEmpty = agent.data.messages.length === 0 && !isBusy && !hasError;
   const lastAssistantMsg = [...agent.data.messages].reverse().find(m => m.role === "assistant");
   const pendingText = lastAssistantMsg ? assistantMessageText(lastAssistantMsg) : "";
+  const bookingScheduleRequested = Boolean(
+    (lastAssistantMsg?.metadata as { ui?: { bookingScheduleRequested?: boolean } } | undefined)?.ui
+      ?.bookingScheduleRequested,
+  ) || shouldShowBookingScheduleButton(pendingText);
   const showLoading = !hasError && (agent.status === "submitted" || (agent.status === "streaming" && pendingText.length === 0));
   const statusText = hasError ? "error" : showLoading ? "submitted" : agent.status;
 
   return (
-    <section className="bg-card flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border/60 shrink-0 border-b px-4 py-3.5 md:px-8">
-        <p className="text-foreground text-sm font-semibold tracking-tight">{session.customerName}</p>
-        <p className="text-muted-foreground mt-0.5 text-xs">{session.matterLabel}</p>
-      </div>
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <ThreadHeader
+        title={session.customerName}
+        subtitle={session.matterLabel}
+        status={isEmpty ? undefined : statusText}
+      />
 
       {isEmpty ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-            <span className="bg-accent/80 text-accent-foreground inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-medium tracking-[0.14em] uppercase">
-              Before you book
-            </span>
-            <h2 className="text-foreground mt-4 text-lg font-semibold tracking-tight">
-              {CHAT_COPY.emptyStateTitle}
-            </h2>
-            <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
-              {CHAT_COPY.emptyStateBody}
-            </p>
-          </div>
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            <div className="mx-auto w-full max-w-2xl px-5 py-8 md:px-7 md:py-10">
+              <span className="text-muted-foreground text-[11px] font-medium tracking-[0.12em] uppercase">
+                Before you book
+              </span>
+              <h2 className="text-foreground mt-3 text-xl font-semibold tracking-tight md:text-2xl">
+                {copy.emptyStateTitle}
+              </h2>
+              <p className="text-muted-foreground mt-3 max-w-xl text-sm leading-relaxed">
+                {copy.emptyStateBody}
+              </p>
 
-          <div className="px-6 pb-2">
-            <p className="text-muted-foreground text-xs font-medium tracking-[0.06em] uppercase">
-              {CHAT_COPY.suggestedPromptsLabel}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 px-6 pb-6">
-            {CHAT_COPY.suggestedPrompts.map((prompt, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => agent.send(prompt)}
-                disabled={isBusy}
-                className="border-border/60 hover:bg-muted/50 text-foreground active:scale-[0.99] flex w-full items-start gap-2 rounded-xl border p-4 text-left text-sm leading-relaxed transition-all duration-150"
-              >
-                <span className="text-muted-foreground mt-0.5 shrink-0 font-mono text-xs tabular-nums">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span>{prompt}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="border-border/60 shrink-0 border-t px-4 pb-4 pt-4 md:px-8 md:pb-6">
-            <div className="mx-auto max-w-2xl">
-              <ChatPanel>
-                <ChatComposer
-                  onSend={(text: string) => agent.send(text)}
+              <div className="mt-8">
+                <SuggestedPrompts
+                  copy={copy}
                   disabled={isBusy}
-                  isStreaming={isBusy}
-                  placeholder={CHAT_COPY.composerPlaceholder}
+                  onSelect={(prompt) => agent.send(prompt)}
                 />
-              </ChatPanel>
+              </div>
             </div>
           </div>
-        </div>
+
+          <ComposerFooter>
+            <ChatComposer
+              onSend={(text: string) => agent.send(text)}
+              bookingScheduleRequested={bookingScheduleRequested}
+              onBookingConfirm={(dateTime) => {
+                void handleBookingConfirm(dateTime);
+              }}
+              disabled={isBusy}
+              isStreaming={isBusy}
+              placeholder={copy.composerPlaceholder}
+            />
+          </ComposerFooter>
+        </>
       ) : (
         <>
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
-            <div className="mx-auto flex max-w-2xl flex-col gap-6">
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 md:px-7 md:py-8"
+          >
+            <div className="mx-auto flex max-w-2xl flex-col gap-5">
               {agent.data.messages.filter((m) => m.role !== "assistant" || assistantMessageText(m).length > 0).map((msg, i) => (
                 <ChatMessage key={i} message={msg} />
               ))}
             </div>
-            {showLoading && <ChatTypingIndicator />}
+            {showLoading ? <ChatTypingIndicator /> : null}
           </div>
 
-          <ChatStatusBar status={statusText} matterLabel={session.matterLabel} customerName={session.customerName} errorMessage={undefined} />
-
-          <div className="shrink-0 px-4 pb-4 md:px-8 md:pb-6">
-            <div className="mx-auto max-w-2xl">
-              <ChatPanel>
-                {hasError && !isBusy ? (
-                  <ChatErrorBanner
-                    message={chatErrorMessageForVisitor(agent.error?.message) ?? agent.error?.message ?? "Error"}
-                    onRetry={() => { onSessionUpdate({ runtimeResetKey: Date.now() }); }}
-                    onStartNew={onStartNewConversation}
-                  />
-                ) : (
-                  <ChatComposer
-                    onSend={(text: string) => agent.send(text)}
-                    disabled={isBusy && !hasError}
-                    isStreaming={isBusy}
-                  />
-                )}
-              </ChatPanel>
+          {!isEmpty && hasError && !isBusy ? (
+            <div className="border-border/50 shrink-0 border-t px-4 py-3 md:px-7">
+              <div className="mx-auto max-w-2xl">
+                <ChatErrorBanner
+                  message={chatErrorMessageForVisitor(agent.error?.message) ?? agent.error?.message ?? "Error"}
+                  onRetry={() => { onSessionUpdate({ runtimeResetKey: Date.now() }); }}
+                  onStartNew={onStartNewConversation}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
+
+          <ComposerFooter>
+            {!hasError || isBusy ? (
+              <ChatComposer
+                onSend={(text: string) => agent.send(text)}
+                bookingScheduleRequested={bookingScheduleRequested}
+                onBookingConfirm={(dateTime) => {
+                  void handleBookingConfirm(dateTime);
+                }}
+                disabled={isBusy && !hasError}
+                isStreaming={isBusy}
+                placeholder={copy.composerPlaceholder}
+              />
+            ) : null}
+          </ComposerFooter>
         </>
       )}
     </section>

@@ -5,11 +5,13 @@ import type { BookingRequestItem, FirmBookingDetail, FirmDashboardOverview } fro
 import { CONVERSATION_CONTEXT_PREVIEW_LIMIT } from "@leadpilot/shared";
 import { BookingDetail } from "./booking-detail";
 import { BookingRequests } from "./booking-requests";
+import { ConversationLeads } from "./conversation-leads";
 import { ConversationContextPanel } from "./conversation-context-panel";
 import { DashboardOverview } from "./dashboard-overview";
 import { DashboardShell } from "./dashboard-shell";
 import { DashboardState } from "./dashboard-state";
 import { MetricTile } from "./metric-tile";
+import { formatDashboardWhen } from "../dashboard-utils";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -34,6 +36,7 @@ vi.mock("@tanstack/react-router", () => ({
       </a>
     );
   },
+  useNavigate: () => () => undefined,
 }));
 
 const overview: FirmDashboardOverview = {
@@ -60,9 +63,9 @@ const sampleBooking: BookingRequestItem = {
   status: "requested",
   visitorName: "Maren Okonkwo",
   visitorEmail: "maren@northline.io",
+  preferredBookingAt: "2026-01-02T10:30:00.000Z",
   matterSummary: "SAFE note fundraising",
   leadBrief: "Founder exploring seed terms",
-  preferredTimeText: "Tuesday morning",
   createdAt: "2026-01-02T10:00:00.000Z",
 };
 
@@ -75,9 +78,9 @@ const sampleDetail: FirmBookingDetail = {
     status: "requested",
     visitorName: "Maren Okonkwo",
     visitorEmail: "maren@northline.io",
+    preferredBookingAt: "2026-01-02T10:30:00.000Z",
     matterSummary: "SAFE note fundraising",
     leadBrief: "Founder exploring seed terms",
-    preferredTimeText: "Tuesday morning",
     createdAt: "2026-01-02T10:00:00.000Z",
     updatedAt: "2026-01-02T10:00:00.000Z",
   },
@@ -88,6 +91,32 @@ const sampleDetail: FirmBookingDetail = {
     createdAt: `2026-01-02T10:0${index}:00.000Z`,
   })),
   messageCount: 42,
+};
+
+const sampleLead = {
+  conversationId: "conv-1",
+  visitorId: "visitor-1",
+  visitorLabel: "Maren Okonkwo",
+  visitorName: "Maren Okonkwo",
+  visitorEmail: "maren@northline.io",
+  visitorPhone: undefined,
+  companyName: "Northline Labs",
+  matterSummary: "SAFE note fundraising",
+  preferredBookingAt: "2026-01-02T10:30:00.000Z",
+  phase: "qualify" as const,
+  status: "open" as const,
+  sourceUrl: "https://example.com/pricing",
+  lastMessageAt: "2026-01-02T00:00:00.000Z",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  messageCount: 6,
+  topics: ["SAFE notes"],
+  lead: {
+    status: "new" as const,
+    temperature: "warm" as const,
+    score: 72,
+    summary: "Founder exploring seed terms",
+  },
+  bookingStatus: "requested" as const,
 };
 
 describe("dashboard rendering", () => {
@@ -104,6 +133,7 @@ describe("dashboard rendering", () => {
     expect(screen.getByText("Harbor & Vale Legal")).toBeInTheDocument();
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByText("Leads")).toBeInTheDocument();
+    expect(screen.getByText("Conversations")).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
     expect(container.querySelector(".min-h-dvh")).toBeTruthy();
   });
@@ -150,6 +180,7 @@ describe("dashboard rendering", () => {
             visitorName: undefined,
             visitorEmail: undefined,
             visitorPhone: undefined,
+            preferredBookingAt: undefined,
             preferredTimeText: undefined,
           },
         ]}
@@ -158,6 +189,19 @@ describe("dashboard rendering", () => {
     expect(screen.getByText("No email yet")).toBeInTheDocument();
     expect(screen.getByText("No phone yet")).toBeInTheDocument();
     expect(screen.getByText("Preferred time not provided")).toBeInTheDocument();
+  });
+
+  it("shouldRenderPreferredBookingDateTimeWhenStructuredValueExists", () => {
+    render(<BookingRequests firmSlug="demo-law" bookings={[sampleBooking]} />);
+    expect(
+      screen.getByText(`Structured booking time: ${formatDashboardWhen(sampleBooking.preferredBookingAt)}`),
+    ).toBeInTheDocument();
+  });
+
+  it("shouldRenderStructuredBookingDatetimeOnLeadRows", () => {
+    render(<ConversationLeads firmSlug="demo-law" leads={[sampleLead]} />);
+    expect(screen.getByText("Booking linked")).toBeInTheDocument();
+    expect(screen.getByText(sampleLead.visitorLabel)).toBeInTheDocument();
   });
 
   it("shouldNotRenderReasoningMessages", () => {
@@ -213,6 +257,7 @@ describe("dashboard rendering", () => {
     render(<BookingDetail firmSlug="demo-law" detail={sampleDetail} />);
     expect(screen.getByText("Founder exploring seed terms")).toBeInTheDocument();
     expect(screen.queryByText("Preferred time not provided")).toBeNull();
-    expect(screen.getByText("Tuesday morning")).toBeInTheDocument();
+    expect(screen.getByText("Structured booking time")).toBeInTheDocument();
+    expect(screen.getByText(formatDashboardWhen(sampleDetail.booking.preferredBookingAt))).toBeInTheDocument();
   });
 });

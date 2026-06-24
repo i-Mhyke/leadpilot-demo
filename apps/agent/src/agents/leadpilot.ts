@@ -61,7 +61,7 @@ export default defineAgent(async ({ id }) => {
   return {
     model: resolveModelSpecifier(),
     thinkingLevel: resolveThinkingLevel(),
-    instructions,
+    instructions: fullInstructions,
     tools: [
       createUpsertLeadTool(firmSlug, browserSessionId),
       createBookingRequestTool(firmSlug, browserSessionId),

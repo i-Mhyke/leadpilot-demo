@@ -17,8 +17,10 @@ import { Route as AskFirmSlugRouteImport } from './routes/ask.$firmSlug'
 import { Route as AdminTenantsRouteImport } from './routes/admin.tenants'
 import { Route as DashboardFirmSlugIndexRouteImport } from './routes/dashboard.$firmSlug.index'
 import { Route as DashboardFirmSlugLeadsRouteImport } from './routes/dashboard.$firmSlug.leads'
+import { Route as DashboardFirmSlugConversationsRouteImport } from './routes/dashboard.$firmSlug.conversations'
 import { Route as DashboardFirmSlugContentRouteImport } from './routes/dashboard.$firmSlug.content'
 import { Route as DashboardFirmSlugLeadsIndexRouteImport } from './routes/dashboard.$firmSlug.leads.index'
+import { Route as DashboardFirmSlugConversationsIndexRouteImport } from './routes/dashboard.$firmSlug.conversations.index'
 import { Route as DashboardFirmSlugLeadsConversationIdRouteImport } from './routes/dashboard.$firmSlug.leads.$conversationId'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -61,6 +63,12 @@ const DashboardFirmSlugLeadsRoute = DashboardFirmSlugLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => DashboardFirmSlugRoute,
 } as any)
+const DashboardFirmSlugConversationsRoute =
+  DashboardFirmSlugConversationsRouteImport.update({
+    id: '/conversations',
+    path: '/conversations',
+    getParentRoute: () => DashboardFirmSlugRoute,
+  } as any)
 const DashboardFirmSlugContentRoute =
   DashboardFirmSlugContentRouteImport.update({
     id: '/content',
@@ -72,6 +80,12 @@ const DashboardFirmSlugLeadsIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => DashboardFirmSlugLeadsRoute,
+  } as any)
+const DashboardFirmSlugConversationsIndexRoute =
+  DashboardFirmSlugConversationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => DashboardFirmSlugConversationsRoute,
   } as any)
 const DashboardFirmSlugLeadsConversationIdRoute =
   DashboardFirmSlugLeadsConversationIdRouteImport.update({
@@ -88,9 +102,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/$firmSlug': typeof DashboardFirmSlugRouteWithChildren
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/$firmSlug/content': typeof DashboardFirmSlugContentRoute
+  '/dashboard/$firmSlug/conversations': typeof DashboardFirmSlugConversationsRouteWithChildren
   '/dashboard/$firmSlug/leads': typeof DashboardFirmSlugLeadsRouteWithChildren
   '/dashboard/$firmSlug/': typeof DashboardFirmSlugIndexRoute
   '/dashboard/$firmSlug/leads/$conversationId': typeof DashboardFirmSlugLeadsConversationIdRoute
+  '/dashboard/$firmSlug/conversations/': typeof DashboardFirmSlugConversationsIndexRoute
   '/dashboard/$firmSlug/leads/': typeof DashboardFirmSlugLeadsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -102,6 +118,7 @@ export interface FileRoutesByTo {
   '/dashboard/$firmSlug/content': typeof DashboardFirmSlugContentRoute
   '/dashboard/$firmSlug': typeof DashboardFirmSlugIndexRoute
   '/dashboard/$firmSlug/leads/$conversationId': typeof DashboardFirmSlugLeadsConversationIdRoute
+  '/dashboard/$firmSlug/conversations': typeof DashboardFirmSlugConversationsIndexRoute
   '/dashboard/$firmSlug/leads': typeof DashboardFirmSlugLeadsIndexRoute
 }
 export interface FileRoutesById {
@@ -113,9 +130,11 @@ export interface FileRoutesById {
   '/dashboard/$firmSlug': typeof DashboardFirmSlugRouteWithChildren
   '/dashboard/leads': typeof DashboardLeadsRoute
   '/dashboard/$firmSlug/content': typeof DashboardFirmSlugContentRoute
+  '/dashboard/$firmSlug/conversations': typeof DashboardFirmSlugConversationsRouteWithChildren
   '/dashboard/$firmSlug/leads': typeof DashboardFirmSlugLeadsRouteWithChildren
   '/dashboard/$firmSlug/': typeof DashboardFirmSlugIndexRoute
   '/dashboard/$firmSlug/leads/$conversationId': typeof DashboardFirmSlugLeadsConversationIdRoute
+  '/dashboard/$firmSlug/conversations/': typeof DashboardFirmSlugConversationsIndexRoute
   '/dashboard/$firmSlug/leads/': typeof DashboardFirmSlugLeadsIndexRoute
 }
 export interface FileRouteTypes {
@@ -128,9 +147,11 @@ export interface FileRouteTypes {
     | '/dashboard/$firmSlug'
     | '/dashboard/leads'
     | '/dashboard/$firmSlug/content'
+    | '/dashboard/$firmSlug/conversations'
     | '/dashboard/$firmSlug/leads'
     | '/dashboard/$firmSlug/'
     | '/dashboard/$firmSlug/leads/$conversationId'
+    | '/dashboard/$firmSlug/conversations/'
     | '/dashboard/$firmSlug/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -142,6 +163,7 @@ export interface FileRouteTypes {
     | '/dashboard/$firmSlug/content'
     | '/dashboard/$firmSlug'
     | '/dashboard/$firmSlug/leads/$conversationId'
+    | '/dashboard/$firmSlug/conversations'
     | '/dashboard/$firmSlug/leads'
   id:
     | '__root__'
@@ -152,9 +174,11 @@ export interface FileRouteTypes {
     | '/dashboard/$firmSlug'
     | '/dashboard/leads'
     | '/dashboard/$firmSlug/content'
+    | '/dashboard/$firmSlug/conversations'
     | '/dashboard/$firmSlug/leads'
     | '/dashboard/$firmSlug/'
     | '/dashboard/$firmSlug/leads/$conversationId'
+    | '/dashboard/$firmSlug/conversations/'
     | '/dashboard/$firmSlug/leads/'
   fileRoutesById: FileRoutesById
 }
@@ -223,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFirmSlugLeadsRouteImport
       parentRoute: typeof DashboardFirmSlugRoute
     }
+    '/dashboard/$firmSlug/conversations': {
+      id: '/dashboard/$firmSlug/conversations'
+      path: '/conversations'
+      fullPath: '/dashboard/$firmSlug/conversations'
+      preLoaderRoute: typeof DashboardFirmSlugConversationsRouteImport
+      parentRoute: typeof DashboardFirmSlugRoute
+    }
     '/dashboard/$firmSlug/content': {
       id: '/dashboard/$firmSlug/content'
       path: '/content'
@@ -237,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFirmSlugLeadsIndexRouteImport
       parentRoute: typeof DashboardFirmSlugLeadsRoute
     }
+    '/dashboard/$firmSlug/conversations/': {
+      id: '/dashboard/$firmSlug/conversations/'
+      path: '/'
+      fullPath: '/dashboard/$firmSlug/conversations/'
+      preLoaderRoute: typeof DashboardFirmSlugConversationsIndexRouteImport
+      parentRoute: typeof DashboardFirmSlugConversationsRoute
+    }
     '/dashboard/$firmSlug/leads/$conversationId': {
       id: '/dashboard/$firmSlug/leads/$conversationId'
       path: '/$conversationId'
@@ -246,6 +284,21 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface DashboardFirmSlugConversationsRouteChildren {
+  DashboardFirmSlugConversationsIndexRoute: typeof DashboardFirmSlugConversationsIndexRoute
+}
+
+const DashboardFirmSlugConversationsRouteChildren: DashboardFirmSlugConversationsRouteChildren =
+  {
+    DashboardFirmSlugConversationsIndexRoute:
+      DashboardFirmSlugConversationsIndexRoute,
+  }
+
+const DashboardFirmSlugConversationsRouteWithChildren =
+  DashboardFirmSlugConversationsRoute._addFileChildren(
+    DashboardFirmSlugConversationsRouteChildren,
+  )
 
 interface DashboardFirmSlugLeadsRouteChildren {
   DashboardFirmSlugLeadsConversationIdRoute: typeof DashboardFirmSlugLeadsConversationIdRoute
@@ -266,12 +319,15 @@ const DashboardFirmSlugLeadsRouteWithChildren =
 
 interface DashboardFirmSlugRouteChildren {
   DashboardFirmSlugContentRoute: typeof DashboardFirmSlugContentRoute
+  DashboardFirmSlugConversationsRoute: typeof DashboardFirmSlugConversationsRouteWithChildren
   DashboardFirmSlugLeadsRoute: typeof DashboardFirmSlugLeadsRouteWithChildren
   DashboardFirmSlugIndexRoute: typeof DashboardFirmSlugIndexRoute
 }
 
 const DashboardFirmSlugRouteChildren: DashboardFirmSlugRouteChildren = {
   DashboardFirmSlugContentRoute: DashboardFirmSlugContentRoute,
+  DashboardFirmSlugConversationsRoute:
+    DashboardFirmSlugConversationsRouteWithChildren,
   DashboardFirmSlugLeadsRoute: DashboardFirmSlugLeadsRouteWithChildren,
   DashboardFirmSlugIndexRoute: DashboardFirmSlugIndexRoute,
 }

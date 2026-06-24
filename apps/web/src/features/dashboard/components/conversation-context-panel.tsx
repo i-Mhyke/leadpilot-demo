@@ -1,5 +1,4 @@
 import type { ConversationContextMessage } from "@leadpilot/shared";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { formatDashboardWhen } from "../dashboard-utils";
 import { DashboardPanel } from "./dashboard-panel";
@@ -14,8 +13,10 @@ export function ConversationContextPanel({
   previewLimit: number;
 }) {
   return (
-    <DashboardPanel innerClassName="flex min-h-0 flex-col">
-      <div className="border-border/60 border-b px-4 py-3 md:px-5">
+    <DashboardPanel
+      innerClassName="flex max-h-[90vh] min-h-[12rem] min-w-0 flex-col overflow-hidden"
+    >
+      <div className="border-border/60 shrink-0 border-b px-4 py-3 md:px-5">
         <h3 className="text-foreground text-sm font-semibold tracking-tight">Conversation context</h3>
         <p className="text-muted-foreground mt-0.5 text-xs">
           Recent visitor and assistant messages from the intake chat.
@@ -23,21 +24,26 @@ export function ConversationContextPanel({
       </div>
 
       {messages.length === 0 ? (
-        <div className="text-muted-foreground px-4 py-8 text-center text-sm md:px-5">
+        <div className="text-muted-foreground flex flex-1 items-center justify-center px-4 py-8 text-center text-sm md:px-5">
           No recent conversation context
         </div>
       ) : (
-        <ScrollArea className="max-h-[min(32rem,60vh)]">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+          role="region"
+          aria-label="Conversation messages"
+          tabIndex={0}
+        >
           <div className="space-y-3 px-4 py-4 md:px-5">
             {messages.map((message) => (
               <ContextMessage key={message.id} message={message} />
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
 
       {messageCount > 0 ? (
-        <div className="border-border/60 text-muted-foreground border-t px-4 py-2.5 text-xs md:px-5">
+        <div className="border-border/60 text-muted-foreground shrink-0 border-t px-4 py-2.5 text-xs md:px-5">
           Showing{" "}
           <span className="text-foreground font-mono tabular-nums">
             {Math.min(messages.length, previewLimit)}

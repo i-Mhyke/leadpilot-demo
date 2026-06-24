@@ -128,6 +128,7 @@ type ConversationLeadRow = {
   lead_score: number | null;
   lead_summary: string | null;
   booking_status: string | null;
+  preferred_booking_at: string | null;
 };
 
 function visitorLabel(row: ConversationLeadRow): string {
@@ -178,17 +179,28 @@ export async function listFirmConversationLeadsBySlug(
       lp.temperature AS lead_temperature,
       lp.score AS lead_score,
       lp.summary AS lead_summary,
-      br.status AS booking_status
+      br.status AS booking_status,
+      COALESCE(br.preferred_booking_at, be.preferred_booking_at) AS preferred_booking_at
     FROM conversations c
     INNER JOIN visitors v ON v.id = c.visitor_id AND v.firm_id = c.firm_id
     LEFT JOIN lead_profiles lp ON lp.conversation_id = c.id AND lp.firm_id = c.firm_id
     LEFT JOIN LATERAL (
-      SELECT status
+      SELECT status,
+             preferred_booking_at
       FROM booking_requests
       WHERE conversation_id = c.id AND firm_id = c.firm_id
       ORDER BY created_at DESC
       LIMIT 1
     ) br ON true
+    LEFT JOIN LATERAL (
+      SELECT (payload->>'preferredBookingAt')::timestamptz AS preferred_booking_at
+      FROM conversation_events
+      WHERE conversation_id = c.id
+        AND firm_id = c.firm_id
+        AND event_type = 'booking.preferred_datetime_selected'
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) be ON true
     WHERE c.firm_id = ${firm.id}
     ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
     LIMIT ${limit}
@@ -198,6 +210,7 @@ export async function listFirmConversationLeadsBySlug(
     conversationId: row.conversation_id,
     visitorId: row.visitor_id,
     visitorLabel: visitorLabel(row),
+    visitorName: row.visitor_name?.trim() || undefined,
     visitorEmail: row.visitor_email ?? undefined,
     visitorPhone: row.visitor_phone ?? undefined,
     companyName: row.company_name ?? undefined,
@@ -218,6 +231,7 @@ export async function listFirmConversationLeadsBySlug(
             summary: row.lead_summary ?? undefined,
           }
         : undefined,
+    preferredBookingAt: row.preferred_booking_at ?? undefined,
     bookingStatus: row.booking_status
       ? (row.booking_status as FirmConversationLead["bookingStatus"])
       : undefined,
@@ -234,6 +248,7 @@ type BookingListRow = {
   visitor_email: string | null;
   visitor_phone: string | null;
   company_name: string | null;
+  preferred_booking_at: string | null;
   matter_summary: string;
   lead_brief: string;
   preferred_time_text: string | null;
@@ -273,6 +288,7 @@ function mapBookingListItem(row: BookingListRow): BookingRequestItem {
     visitorEmail: row.visitor_email ?? undefined,
     visitorPhone: row.visitor_phone ?? undefined,
     companyName: row.company_name ?? undefined,
+    preferredBookingAt: row.preferred_booking_at ?? undefined,
     matterSummary: row.matter_summary,
     leadBrief: row.lead_brief,
     preferredTimeText: row.preferred_time_text ?? undefined,
@@ -294,6 +310,7 @@ function mapBookingDetail(row: BookingDetailRow) {
     visitorEmail: row.visitor_email ?? undefined,
     visitorPhone: row.visitor_phone ?? undefined,
     companyName: row.company_name ?? undefined,
+    preferredBookingAt: row.preferred_booking_at ?? undefined,
     preferredTimeText: row.preferred_time_text ?? undefined,
     matterSummary: row.matter_summary,
     leadBrief: row.lead_brief,
@@ -316,21 +333,31 @@ export async function listFirmBookingRequestItemsBySlug(
   const sql = getSql();
   const rows = toRows<BookingListRow>(await sql`
     SELECT
-      id,
-      conversation_id,
-      status,
-      visitor_name,
-      visitor_email,
-      visitor_phone,
-      company_name,
-      matter_summary,
-      lead_brief,
-      preferred_time_text,
-      urgency,
-      created_at
-    FROM booking_requests
+      br0.id,
+      br0.conversation_id,
+      br0.status,
+      br0.visitor_name,
+      br0.visitor_email,
+      br0.visitor_phone,
+      br0.company_name,
+      COALESCE(br0.preferred_booking_at, be.preferred_booking_at) AS preferred_booking_at,
+      br0.matter_summary,
+      br0.lead_brief,
+      br0.preferred_time_text,
+      br0.urgency,
+      br0.created_at
+    FROM booking_requests br0
+    LEFT JOIN LATERAL (
+      SELECT (payload->>'preferredBookingAt')::timestamptz AS preferred_booking_at
+      FROM conversation_events
+      WHERE conversation_id = br0.conversation_id
+        AND firm_id = br0.firm_id
+        AND event_type = 'booking.preferred_datetime_selected'
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) be ON true
     WHERE firm_id = ${firm.id}
-    ORDER BY created_at DESC
+    ORDER BY br0.created_at DESC
     LIMIT ${limit}
   `);
 
@@ -355,28 +382,38 @@ export async function getFirmBookingDetailBySlug(
   const sql = getSql();
   const bookingRows = toRows<BookingDetailRow>(await sql`
     SELECT
-      id,
-      firm_id,
-      conversation_id,
-      lead_id,
-      status,
-      service_id,
-      routing_group,
-      visitor_name,
-      visitor_email,
-      visitor_phone,
-      company_name,
-      preferred_time_text,
-      matter_summary,
-      lead_brief,
-      urgency,
-      source_url,
-      created_at,
-      updated_at
-    FROM booking_requests
+      br0.id,
+      br0.firm_id,
+      br0.conversation_id,
+      br0.lead_id,
+      br0.status,
+      br0.service_id,
+      br0.routing_group,
+      br0.visitor_name,
+      br0.visitor_email,
+      br0.visitor_phone,
+      br0.company_name,
+      COALESCE(br0.preferred_booking_at, be.preferred_booking_at) AS preferred_booking_at,
+      br0.preferred_time_text,
+      br0.matter_summary,
+      br0.lead_brief,
+      br0.urgency,
+      br0.source_url,
+      br0.created_at,
+      br0.updated_at
+    FROM booking_requests br0
+    LEFT JOIN LATERAL (
+      SELECT (payload->>'preferredBookingAt')::timestamptz AS preferred_booking_at
+      FROM conversation_events
+      WHERE conversation_id = br0.conversation_id
+        AND firm_id = br0.firm_id
+        AND event_type = 'booking.preferred_datetime_selected'
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) be ON true
     WHERE firm_id = ${firm.id}
       AND conversation_id = ${conversationId}
-    ORDER BY created_at DESC
+    ORDER BY br0.created_at DESC
     LIMIT 1
   `);
 

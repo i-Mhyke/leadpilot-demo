@@ -12,9 +12,11 @@ export interface FirmBrainSlots {
   tone: FirmBrainTone;
   greeting?: string;
   qualificationPosture: string[];
+  qualificationHints?: string[];
   escalationRules: string[];
   forbiddenClaims: string[];
   serviceEmphasis: string[];
+  suggestedQuestions?: string[];
 }
 
 export interface FirmBrainConfig {

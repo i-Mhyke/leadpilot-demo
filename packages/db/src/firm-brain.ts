@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import type { FirmBrainConfig, FirmBrainSnapshot, FirmBrainSlots, FirmBrainTone } from "@leadpilot/shared";
+import type {
+  FirmBrainConfig,
+  FirmBrainSnapshot,
+  FirmBrainSlots,
+  FirmBrainTone,
+} from "@leadpilot/shared";
 import { getSql } from "./client.ts";
 import { rows as toRows } from "./sql.ts";
 
@@ -50,6 +55,11 @@ const BRAIN_SECTION_ALIASES = new Map<string, keyof FirmBrainSlots | "tone">([
   ["service emphasis", "serviceEmphasis"],
   ["service focus", "serviceEmphasis"],
   ["services", "serviceEmphasis"],
+  ["qualification hints", "qualificationHints"],
+  ["starter questions", "suggestedQuestions"],
+  ["initial suggested questions", "suggestedQuestions"],
+  ["suggested initial questions", "suggestedQuestions"],
+  ["suggested questions", "suggestedQuestions"],
 ]);
 
 function normalizeMarkdown(content: string): string {
@@ -115,6 +125,109 @@ function normalizeBlock(block: string): string {
     .trim();
 }
 
+function cleanLabel(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+type BrainQuestionSource = {
+  firm: {
+    name: string;
+    industry: string;
+  };
+  services: Array<{
+    name: string;
+    qualificationQuestions: string[];
+    visitorExamples: string[];
+    isActive: boolean;
+  }>;
+};
+
+function servicePrompt(service: BrainQuestionSource["services"][number]) {
+  const qualificationQuestion = service.qualificationQuestions[0]?.trim();
+  if (qualificationQuestion) {
+    return qualificationQuestion;
+  }
+
+  const visitorExample = service.visitorExamples[0]?.trim();
+  if (visitorExample) {
+    return visitorExample.endsWith("?") ? visitorExample : `${visitorExample}?`;
+  }
+
+  return `We need help with ${cleanLabel(service.name)}. What should we prepare before the first call?`;
+}
+
+export function deriveSuggestedQuestions(profile: BrainQuestionSource | null): string[] {
+  if (!profile) {
+    return [
+      "What should we prepare before the first call?",
+      "Which details decide whether this is a fit?",
+      "What would make this request urgent enough to escalate?",
+    ];
+  }
+
+  const activeServices = profile.services.filter((service) => service.isActive);
+  const prompts = activeServices.slice(0, 3).map(servicePrompt);
+  const industry = cleanLabel(profile.firm.industry.replace(/_/g, " "));
+
+  for (const prompt of [
+    `What should a ${industry} business prepare before the first call?`,
+    "Which facts decide whether this is a fit?",
+    "What would make this request urgent enough to escalate?",
+  ]) {
+    if (prompts.length >= 3) break;
+    if (!prompts.includes(prompt)) {
+      prompts.push(prompt);
+    }
+  }
+
+  while (prompts.length < 3) {
+    prompts.push("What should we prepare before the first call?");
+  }
+
+  return prompts.slice(0, 3);
+}
+
+async function loadBrainQuestionSource(firmId: string): Promise<BrainQuestionSource | null> {
+  const sql = getSql();
+  const firmRows = toRows<{ name: string; industry: string }>(await sql`
+    SELECT name, industry
+    FROM firms
+    WHERE id = ${firmId}
+      AND status = 'active'
+    LIMIT 1
+  `);
+  const firm = firmRows[0];
+  if (!firm) {
+    return null;
+  }
+
+  const serviceRows = toRows<{
+    name: string;
+    qualification_questions: string[];
+    visitor_examples: string[];
+    is_active: boolean;
+  }>(await sql`
+    SELECT name, qualification_questions, visitor_examples, is_active
+    FROM firm_services
+    WHERE firm_id = ${firmId}
+      AND is_active = true
+    ORDER BY name ASC
+  `);
+
+  return {
+    firm: {
+      name: firm.name,
+      industry: firm.industry,
+    },
+    services: serviceRows.map((service) => ({
+      name: service.name,
+      qualificationQuestions: service.qualification_questions ?? [],
+      visitorExamples: service.visitor_examples ?? [],
+      isActive: service.is_active,
+    })),
+  };
+}
+
 function parseToneBlock(block: string): FirmBrainTone {
   const tone: FirmBrainTone = { notes: [] };
 
@@ -154,6 +267,7 @@ function mapSectionsToSlots(markdown: string): FirmBrainSlots {
   const slots: FirmBrainSlots = {
     tone: { notes: [] },
     qualificationPosture: [],
+    qualificationHints: [],
     escalationRules: [],
     forbiddenClaims: [],
     serviceEmphasis: [],
@@ -185,6 +299,11 @@ function mapSectionsToSlots(markdown: string): FirmBrainSlots {
     slots.qualificationPosture = qualificationPosture.flatMap((block) => parseListItems(block));
   }
 
+  const qualificationHints = collected.get("qualificationHints");
+  if (qualificationHints?.length) {
+    slots.qualificationHints = qualificationHints.flatMap((block) => parseListItems(block));
+  }
+
   const escalationRules = collected.get("escalationRules");
   if (escalationRules?.length) {
     slots.escalationRules = escalationRules.flatMap((block) => parseListItems(block));
@@ -198,6 +317,11 @@ function mapSectionsToSlots(markdown: string): FirmBrainSlots {
   const serviceEmphasis = collected.get("serviceEmphasis");
   if (serviceEmphasis?.length) {
     slots.serviceEmphasis = serviceEmphasis.flatMap((block) => parseListItems(block));
+  }
+
+  const suggestedQuestions = collected.get("suggestedQuestions");
+  if (suggestedQuestions?.length) {
+    slots.suggestedQuestions = suggestedQuestions.flatMap((block) => parseListItems(block));
   }
 
   const toneBlocks = collected.get("tone");
@@ -237,9 +361,11 @@ export function compileFirmBrainMarkdown(contentMarkdown: string): {
     Boolean(compiled.tone.preferredGreeting) ||
     compiled.tone.notes.length > 0 ||
     compiled.qualificationPosture.length > 0 ||
+    (compiled.qualificationHints?.length ?? 0) > 0 ||
     compiled.escalationRules.length > 0 ||
     compiled.forbiddenClaims.length > 0 ||
-    compiled.serviceEmphasis.length > 0;
+    compiled.serviceEmphasis.length > 0 ||
+    (compiled.suggestedQuestions?.length ?? 0) > 0;
 
   if (!hasRecognizedContent) {
     throw new FirmBrainCompilationError(
@@ -280,6 +406,14 @@ export async function saveFirmBrainConfig(input: {
   contentMarkdown: string;
 }): Promise<FirmBrainConfig> {
   const { normalizedMarkdown, contentHash, compiled } = compileFirmBrainMarkdown(input.contentMarkdown);
+  const profile = await loadBrainQuestionSource(input.firmId);
+  const persistedCompiled: FirmBrainSlots = {
+    ...compiled,
+    suggestedQuestions:
+      compiled.suggestedQuestions?.length && compiled.suggestedQuestions.length > 0
+        ? compiled.suggestedQuestions.slice(0, 3)
+        : deriveSuggestedQuestions(profile),
+  };
   const sql = getSql();
   const rows = toRows<FirmBrainRow>(await sql`
     WITH upsert AS (
@@ -292,7 +426,7 @@ export async function saveFirmBrainConfig(input: {
         ${normalizedMarkdown},
         ${contentHash},
         1,
-        ${JSON.stringify(compiled)}::jsonb,
+        ${JSON.stringify(persistedCompiled)}::jsonb,
         now()
       )
       ON CONFLICT (firm_id) DO UPDATE

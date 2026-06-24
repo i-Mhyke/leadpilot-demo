@@ -59,7 +59,7 @@ export function DashboardOverview({
             </div>
             {overview.recentConversations.length > 0 ? (
               <Link
-                to="/dashboard/$firmSlug/leads"
+                to="/dashboard/$firmSlug/conversations"
                 params={{ firmSlug }}
                 className="text-primary text-xs font-medium transition-colors hover:text-primary/80"
               >

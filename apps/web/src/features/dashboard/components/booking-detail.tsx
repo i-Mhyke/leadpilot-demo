@@ -86,8 +86,12 @@ export function BookingDetail({
               />
               <DetailRow
                 icon={CalendarBlank}
-                label="Preferred time"
-                value={booking.preferredTimeText?.trim() ?? "Preferred time not provided"}
+                label="Structured booking time"
+                value={
+                  booking.preferredBookingAt
+                    ? formatDashboardWhen(booking.preferredBookingAt)
+                    : booking.preferredTimeText?.trim() ?? "Preferred time not provided"
+                }
               />
               {booking.urgency ? (
                 <DetailRow icon={CalendarBlank} label="Urgency" value={booking.urgency} />

@@ -59,6 +59,7 @@ export interface BookingRequest {
   visitorEmail?: string;
   visitorPhone?: string;
   companyName?: string;
+  preferredBookingAt?: string;
   preferredTimeText?: string;
   matterSummary: string;
   leadBrief: string;

@@ -154,3 +154,34 @@ export function parsePersistTurnRequest(data: unknown): PersistTurnInput {
     sessionId: record.sessionId.trim(),
   };
 }
+
+export type BookingSelectionInput = {
+  firmSlug: string;
+  browserSessionId: string;
+  sessionId: string;
+  preferredBookingAt: string;
+  preferredBookingLabel?: string;
+};
+
+export function parseBookingSelectionRequest(data: unknown): BookingSelectionInput {
+  const base = parseChatHistoryRequest(data);
+  const record = data as Record<string, unknown>;
+
+  if (typeof record.sessionId !== "string" || record.sessionId.trim().length === 0) {
+    throw new ChatRequestError("invalid_session_id", "sessionId is required.");
+  }
+
+  if (typeof record.preferredBookingAt !== "string" || record.preferredBookingAt.trim().length === 0) {
+    throw new ChatRequestError("invalid_preferred_booking_at", "preferredBookingAt is required.");
+  }
+
+  return {
+    ...base,
+    sessionId: record.sessionId.trim(),
+    preferredBookingAt: record.preferredBookingAt.trim(),
+    preferredBookingLabel:
+      typeof record.preferredBookingLabel === "string" && record.preferredBookingLabel.trim().length > 0
+        ? record.preferredBookingLabel.trim()
+        : undefined,
+  };
+}

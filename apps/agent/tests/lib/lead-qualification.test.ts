@@ -5,6 +5,8 @@ import {
   toReadinessModelOutput,
   resolveLeadQualification,
   shouldPersistLead,
+  formatBookingFailureModelOutput,
+  formatBookingSuccessModelOutput,
 } from "../../src/agent/lib/lead-qualification.ts";
 
 const lowScoreFactors = {
@@ -85,5 +87,23 @@ describe("model output helpers", () => {
   it("formats readiness output", () => {
     const out = toReadinessModelOutput({ phase: "qualify", nextAction: "ask_for_contact" });
     expect(out).toContain("Next action:");
+  });
+
+  it("formats booking failure output with human-readable datetime labels", () => {
+    const out = formatBookingFailureModelOutput(["preferred_booking_at", "company_name"]);
+    expect(out).toContain("preferred booking date and time");
+    expect(out).toContain("company name");
+  });
+
+  it("prompts for optional context after booking capture", () => {
+    const out = formatBookingSuccessModelOutput({
+      optionalFieldsMissing: {
+        phone: true,
+        preferredTime: false,
+      },
+    });
+    expect(out).toContain("company name");
+    expect(out).toContain("phone number");
+    expect(out).toContain("urgency");
   });
 });

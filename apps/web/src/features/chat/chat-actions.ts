@@ -1,16 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
+  appendConversationEvent,
   clearConversationCursorByBrowserSession,
   deleteConversationByBrowserSession,
   getChatHistoryByBrowserSession,
+  getFirmBySlug,
+  persistAssistantMessage,
+  persistVisitorMessage,
+  resolveConversationContext,
   updateConversationCursorByBrowserSession,
 } from "@leadpilot/db";
 import type { ChatHistoryResult } from "@leadpilot/shared";
 import {
+  parseBookingSelectionRequest,
   parseChatHistoryRequest,
   parseClearChatSessionCursorRequest,
   parseDeleteChatConversationRequest,
   parsePersistChatSessionCursorRequest,
+  parsePersistTurnRequest,
 } from "./validators";
 
 export const getChatHistory = createServerFn({ method: "GET" })
@@ -54,14 +61,6 @@ export const clearChatSessionCursor = createServerFn({ method: "POST" })
     });
   });
 
-import {
-  getFirmBySlug,
-  persistAssistantMessage,
-  persistVisitorMessage,
-  resolveConversationContext,
-} from "@leadpilot/db";
-import { parsePersistTurnRequest } from "./validators";
-
 export const persistConversationTurn = createServerFn({ method: "POST" })
   .validator((data: unknown) => parsePersistTurnRequest(data))
   .handler(async ({ data }) => {
@@ -87,5 +86,31 @@ export const persistConversationTurn = createServerFn({ method: "POST" })
       content: data.assistantMessage,
       eveTurnId: assistantTurnId,
     });
+    return { conversationId: conversation.id };
+  });
+
+export const persistBookingSelection = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parseBookingSelectionRequest(data))
+  .handler(async ({ data }) => {
+    const firm = await getFirmBySlug(data.firmSlug);
+    if ("kind" in firm) throw new Error(firm.kind === "inactive" ? "Firm inactive." : "Unknown firm.");
+
+    const conversation = await resolveConversationContext({
+      firmId: firm.id,
+      firmSlug: data.firmSlug,
+      eveSessionId: data.sessionId,
+      clientContext: { firmSlug: data.firmSlug, browserSessionId: data.browserSessionId },
+    });
+
+    await appendConversationEvent({
+      conversationId: conversation.id,
+      firmId: firm.id,
+      eventType: "booking.preferred_datetime_selected",
+      payload: {
+        preferredBookingAt: data.preferredBookingAt,
+        preferredBookingLabel: data.preferredBookingLabel ?? null,
+      },
+    });
+
     return { conversationId: conversation.id };
   });

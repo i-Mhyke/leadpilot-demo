@@ -21,6 +21,7 @@ describe("lead and booking persistence", () => {
         visitor_email: "lead@example.com",
         visitor_phone: null,
         company_name: null,
+        preferred_booking_at: null,
         preferred_time_text: null,
         matter_summary: "SAFE review",
         lead_brief: "Brief",
@@ -53,6 +54,7 @@ describe("lead and booking persistence", () => {
           visitor_email: "lead@example.com",
           visitor_phone: null,
           company_name: null,
+          preferred_booking_at: null,
           preferred_time_text: null,
           matter_summary: "SAFE review",
           lead_brief: "Brief",
@@ -75,6 +77,56 @@ describe("lead and booking persistence", () => {
     expect(sql).toHaveBeenCalledTimes(1);
   });
 
+  it("persists a structured preferred booking datetime on initial booking capture", async () => {
+    const leadRow = {
+      id: "lead-2",
+      firm_id: "firm-a",
+      conversation_id: "conv-2",
+    };
+    const inserted = {
+      id: "booking-2",
+      firm_id: "firm-a",
+      conversation_id: "conv-2",
+      lead_id: "lead-2",
+      status: "requested",
+      service_id: null,
+      routing_group: null,
+      visitor_name: "Maren",
+      visitor_email: "lead@example.com",
+      visitor_phone: null,
+      company_name: null,
+      preferred_booking_at: "2026-01-02T10:30:00.000Z",
+      preferred_time_text: null,
+      matter_summary: "SAFE review",
+      lead_brief: "Brief",
+      urgency: null,
+      source_url: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
+
+    const sql = vi
+      .fn()
+      .mockResolvedValueOnce([leadRow])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([inserted]);
+    setSqlForTests(sql as never);
+
+    const booking = await createBookingRequest({
+      firmId: "firm-a",
+      conversationId: "conv-2",
+      leadId: "lead-2",
+      visitorName: "Maren",
+      visitorEmail: "lead@example.com",
+      preferredBookingAt: "2026-01-02T10:30:00.000Z",
+      matterSummary: "SAFE review",
+      leadBrief: "Brief",
+    });
+
+    expect(booking.preferredBookingAt).toBe("2026-01-02T10:30:00.000Z");
+    expect(String(sql.mock.calls[2]?.[0])).toContain("preferred_booking_at");
+  });
+
   it("merges optional phone and preferred time into an existing open booking", async () => {
     const existing = {
       id: "booking-1",
@@ -88,6 +140,7 @@ describe("lead and booking persistence", () => {
       visitor_email: "lead@example.com",
       visitor_phone: null,
       company_name: null,
+      preferred_booking_at: "2026-01-01T10:30:00.000Z",
       preferred_time_text: null,
       matter_summary: "SAFE review",
       lead_brief: "Brief",
@@ -123,6 +176,7 @@ describe("lead and booking persistence", () => {
     });
 
     expect(booking.visitorPhone).toBe("+2348000000000");
+    expect(booking.preferredBookingAt).toBe("2026-01-01T10:30:00.000Z");
     expect(booking.preferredTimeText).toBe("Weekday mornings");
     expect(sql).toHaveBeenCalledTimes(2);
   });

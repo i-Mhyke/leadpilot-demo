@@ -37,6 +37,7 @@ type BookingRow = {
   visitor_email: string | null;
   visitor_phone: string | null;
   company_name: string | null;
+  preferred_booking_at: string | null;
   preferred_time_text: string | null;
   matter_summary: string;
   lead_brief: string;
@@ -79,6 +80,7 @@ function mapBooking(row: BookingRow): BookingRequest {
     visitorEmail: row.visitor_email ?? undefined,
     visitorPhone: row.visitor_phone ?? undefined,
     companyName: row.company_name ?? undefined,
+    preferredBookingAt: row.preferred_booking_at ?? undefined,
     preferredTimeText: row.preferred_time_text ?? undefined,
     matterSummary: row.matter_summary,
     leadBrief: row.lead_brief,
@@ -97,6 +99,7 @@ export async function upsertLeadProfile(input: {
   email?: string;
   phone?: string;
   companyName?: string;
+  preferredBookingAt?: string;
   summary?: string;
   primaryServiceId?: string;
   score: number;
@@ -178,7 +181,7 @@ export async function findOpenBookingRequest(
   const sql = getSql();
   const rows = toRows<BookingRow>(await sql`
     SELECT id, firm_id, conversation_id, lead_id, status, service_id, routing_group,
-           visitor_name, visitor_email, visitor_phone, company_name, preferred_time_text,
+           visitor_name, visitor_email, visitor_phone, company_name, preferred_booking_at, preferred_time_text,
            matter_summary, lead_brief, urgency, source_url, created_at, updated_at
     FROM booking_requests
     WHERE firm_id = ${firmId}
@@ -201,6 +204,7 @@ export async function createBookingRequest(input: {
   visitorEmail?: string;
   visitorPhone?: string;
   companyName?: string;
+  preferredBookingAt?: string;
   preferredTimeText?: string;
   matterSummary: string;
   leadBrief: string;
@@ -232,7 +236,7 @@ export async function createBookingRequest(input: {
     const rows = toRows<BookingRow>(await sql`
       INSERT INTO booking_requests (
         firm_id, conversation_id, lead_id, visitor_id, status, service_id, routing_group,
-        visitor_name, visitor_email, visitor_phone, company_name, preferred_time_text,
+        visitor_name, visitor_email, visitor_phone, company_name, preferred_booking_at, preferred_time_text,
         matter_summary, lead_brief, urgency, source_url, idempotency_key
       )
       VALUES (
@@ -247,6 +251,7 @@ export async function createBookingRequest(input: {
         ${input.visitorEmail ?? null},
         ${input.visitorPhone ?? null},
         ${input.companyName ?? null},
+        ${input.preferredBookingAt ?? null},
         ${input.preferredTimeText ?? null},
         ${input.matterSummary},
         ${input.leadBrief},
@@ -255,7 +260,7 @@ export async function createBookingRequest(input: {
         ${input.idempotencyKey ?? null}
       )
       RETURNING id, firm_id, conversation_id, lead_id, status, service_id, routing_group,
-                visitor_name, visitor_email, visitor_phone, company_name, preferred_time_text,
+                visitor_name, visitor_email, visitor_phone, company_name, preferred_booking_at, preferred_time_text,
                 matter_summary, lead_brief, urgency, source_url, created_at, updated_at
     `);
     return mapBooking(rows[0]!);
@@ -279,6 +284,7 @@ function mergeOpenBookingRequest(
     visitorEmail?: string;
     visitorPhone?: string;
     companyName?: string;
+    preferredBookingAt?: string;
     preferredTimeText?: string;
     matterSummary: string;
     leadBrief: string;
@@ -289,6 +295,7 @@ function mergeOpenBookingRequest(
   const merged = {
     leadId: existing.leadId ?? input.leadId,
     visitorPhone: input.visitorPhone ?? existing.visitorPhone,
+    preferredBookingAt: input.preferredBookingAt ?? existing.preferredBookingAt,
     preferredTimeText: input.preferredTimeText ?? existing.preferredTimeText,
     companyName: input.companyName ?? existing.companyName,
     visitorName: input.visitorName ?? existing.visitorName,
@@ -304,6 +311,7 @@ function mergeOpenBookingRequest(
   const changed =
     merged.leadId !== existing.leadId ||
     merged.visitorPhone !== existing.visitorPhone ||
+    merged.preferredBookingAt !== existing.preferredBookingAt ||
     merged.preferredTimeText !== existing.preferredTimeText ||
     merged.companyName !== existing.companyName ||
     merged.visitorName !== existing.visitorName ||
@@ -326,6 +334,7 @@ async function updateOpenBookingRequest(
   patch: {
     leadId?: string;
     visitorPhone?: string;
+    preferredBookingAt?: string;
     preferredTimeText?: string;
     companyName?: string;
     visitorName?: string;
@@ -344,6 +353,7 @@ async function updateOpenBookingRequest(
     SET
       lead_id = ${patch.leadId ?? null},
       visitor_phone = ${patch.visitorPhone ?? null},
+      preferred_booking_at = ${patch.preferredBookingAt ?? null},
       preferred_time_text = ${patch.preferredTimeText ?? null},
       company_name = ${patch.companyName ?? null},
       visitor_name = ${patch.visitorName ?? null},
@@ -359,7 +369,7 @@ async function updateOpenBookingRequest(
       AND firm_id = ${firmId}
       AND status = 'requested'
     RETURNING id, firm_id, conversation_id, lead_id, status, service_id, routing_group,
-              visitor_name, visitor_email, visitor_phone, company_name, preferred_time_text,
+              visitor_name, visitor_email, visitor_phone, company_name, preferred_booking_at, preferred_time_text,
               matter_summary, lead_brief, urgency, source_url, created_at, updated_at
   `);
   return mapBooking(rows[0]!);

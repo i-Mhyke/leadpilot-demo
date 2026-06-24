@@ -119,9 +119,11 @@ function BookingRequestRow({
             Received {formatDashboardWhen(booking.createdAt)}
           </span>
           <span>
-            {booking.preferredTimeText?.trim()
-              ? `Preferred: ${booking.preferredTimeText}`
-              : "Preferred time not provided"}
+            {booking.preferredBookingAt
+              ? `Structured booking time: ${formatDashboardWhen(booking.preferredBookingAt)}`
+              : booking.preferredTimeText?.trim()
+                ? `Booking time note: ${booking.preferredTimeText}`
+                : "Preferred time not provided"}
           </span>
         </div>
       </div>
