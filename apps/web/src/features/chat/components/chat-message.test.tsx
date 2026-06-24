@@ -24,4 +24,27 @@ describe("ChatMessage", () => {
     expect(screen.queryByText(/internal reasoning/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/signature/i)).not.toBeInTheDocument();
   });
+
+  it("strips the booking schedule marker from assistant text", () => {
+    const message = {
+      id: "assistant-2",
+      role: "assistant",
+      metadata: {
+        ui: {
+          bookingScheduleRequested: true,
+        },
+      },
+      parts: [
+        {
+          type: "text",
+          text: "What day and time would you prefer?\n[[leadpilot.booking_schedule_requested]]",
+        },
+      ],
+    } as unknown as EveMessage;
+
+    render(<ChatMessage message={message} />);
+
+    expect(screen.getByText(/What day and time would you prefer/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\[\[leadpilot\.booking_schedule_requested\]\]/i)).not.toBeInTheDocument();
+  });
 });

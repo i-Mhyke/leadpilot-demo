@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { shouldShowBookingScheduleButton } from "./booking-datetime";
+import type { ConversationMetadata } from "@leadpilot/shared";
+import { extractBookingScheduleSignal, shouldShowBookingScheduleButton } from "./booking-datetime";
 import { FlueSession, type FlueStreamEvent, type SendTurnInput } from "./flue-session";
 
 export type EveTextPart = { type: "text"; text: string };
@@ -28,12 +29,13 @@ export type EveMessagePart =
 export type EveMessage = {
   role: "user" | "assistant" | "tool";
   parts: EveMessagePart[];
-  metadata?: Record<string, unknown>;
+  metadata?: ConversationMetadata;
 };
 
 export type UseEveAgentStatus = "idle" | "submitted" | "streaming" | "error" | "done";
 
 export type EveMessageData = { message: string };
+const BOOKING_SCHEDULE_FALLBACK_TEXT = "What day and time would you prefer?";
 
 export interface UseEveAgentOptions<TMessageData = EveMessageData> {
   session: FlueSession;
@@ -68,10 +70,9 @@ export function useFlueAgent(options: {
   onFinishRef.current = options.onFinish;
 
   useEffect(() => {
-    if (options.initialEvents && options.initialEvents.length > 0) {
-      setEvents(options.initialEvents);
-      setMessages(parseInitialEvents(options.initialEvents));
-    }
+    const initialEvents = options.initialEvents ?? [];
+    setEvents(initialEvents);
+    setMessages(parseInitialEvents(initialEvents));
   }, [options.initialEvents]);
 
   const stop = useCallback(() => {
@@ -94,18 +95,27 @@ export function useFlueAgent(options: {
 
     try {
       const result = await sessionRef.current.send(input);
+      const responsePayload = unwrapAssistantResponse(result);
+      const rawResponseText = responsePayload.text ?? "";
+      const extractedSignal = extractBookingScheduleSignal(rawResponseText);
+      const bookingScheduleRequested =
+        responsePayload.ui?.bookingScheduleRequested ??
+        extractedSignal.bookingScheduleRequested ??
+        shouldShowBookingScheduleButton(extractedSignal.text);
       const responseText =
-        (result as any)?.result?.text ||
-        (result as any)?.text ||
-        "";
+        extractedSignal.text.trim().length > 0
+          ? extractedSignal.text
+          : bookingScheduleRequested
+            ? BOOKING_SCHEDULE_FALLBACK_TEXT
+            : "";
       const assistantMsg: EveMessage = {
         role: "assistant",
         parts: [{ type: "text", text: responseText }],
-        metadata: shouldShowBookingScheduleButton(responseText)
+        metadata: bookingScheduleRequested
           ? { ui: { bookingScheduleRequested: true } }
           : undefined,
       };
-      if (responseText) {
+      if (responseText || bookingScheduleRequested) {
         setMessages(prev => [...prev, assistantMsg]);
       }
       setStatus("done");
@@ -137,14 +147,100 @@ export function useFlueAgent(options: {
 function parseInitialEvents(events: FlueStreamEvent[]): EveMessage[] {
   const msgs: EveMessage[] = [];
   for (const evt of events) {
-    if (evt.type === "message_end" && evt.data?.message) {
-      const msg = evt.data.message as Record<string, unknown>;
-      const role = (msg.role as string) || "assistant";
-      const text = (msg.text as string) || "";
-      if (text) {
-        msgs.push({ role: role as "user" | "assistant", parts: [{ type: "text", text }] });
-      }
-    }
+    if (!isHydratedMessageEvent(evt)) continue;
+    const message = normalizeHydratedMessage(evt);
+    if (!message) continue;
+    msgs.push(message);
   }
   return msgs;
+}
+
+function isHydratedMessageEvent(evt: FlueStreamEvent) {
+  return evt.type === "message_end" || evt.type === "message.completed" || evt.type === "message.received";
+}
+
+function normalizeHydratedMessage(evt: FlueStreamEvent): EveMessage | undefined {
+  const rawMessage = evt.data?.message;
+  const message = normalizeHydratedMessagePayload(rawMessage);
+  if (!message) return undefined;
+
+  const role = evt.type === "message.received" ? "user" : message.role;
+  const normalizedText =
+    role === "assistant" ? extractBookingScheduleSignal(message.text) : { text: message.text, bookingScheduleRequested: false };
+  const metadata = normalizedText.bookingScheduleRequested
+    ? {
+        ...(message.metadata ?? {}),
+        ui: { ...(message.metadata?.ui ?? {}), bookingScheduleRequested: true },
+      }
+    : message.metadata;
+  const text =
+    normalizedText.text.trim().length > 0
+      ? normalizedText.text
+      : metadata?.ui?.bookingScheduleRequested
+        ? BOOKING_SCHEDULE_FALLBACK_TEXT
+        : "";
+  if (!text && !metadata?.ui?.bookingScheduleRequested) return undefined;
+
+  return {
+    role,
+    parts: text ? [{ type: "text", text }] : [],
+    metadata,
+  };
+}
+
+function normalizeHydratedMessagePayload(
+  message: unknown,
+): { role: "user" | "assistant"; text: string; metadata?: ConversationMetadata } | undefined {
+  if (typeof message === "string") {
+    return { role: "assistant", text: message };
+  }
+  if (!message || typeof message !== "object" || Array.isArray(message)) return undefined;
+
+  const record = message as Record<string, unknown>;
+  const text = typeof record.text === "string" ? record.text : typeof record.message === "string" ? record.message : "";
+  const role = record.role === "user" ? "user" : "assistant";
+  const metadata =
+    record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
+      ? (record.metadata as ConversationMetadata)
+      : undefined;
+
+  return { role, text, metadata };
+}
+
+function unwrapAssistantResponse(result: unknown): {
+  text?: string;
+  ui?: { bookingScheduleRequested?: boolean };
+} {
+  const candidate = unwrapResultPayload(result);
+  if (typeof candidate === "string") {
+    return { text: candidate };
+  }
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return {};
+  }
+
+  const record = candidate as Record<string, unknown>;
+  const text =
+    typeof record.text === "string"
+      ? record.text
+      : typeof record.message === "string"
+        ? record.message
+        : undefined;
+  const ui =
+    record.ui && typeof record.ui === "object" && !Array.isArray(record.ui)
+      ? (record.ui as Record<string, unknown>)
+      : undefined;
+
+  return {
+    text,
+    ui: typeof ui?.bookingScheduleRequested === "boolean" ? { bookingScheduleRequested: ui.bookingScheduleRequested } : undefined,
+  };
+}
+
+function unwrapResultPayload(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if ("result" in record) return unwrapResultPayload(record.result);
+  if ("data" in record) return unwrapResultPayload(record.data);
+  return value;
 }

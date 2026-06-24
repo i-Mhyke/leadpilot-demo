@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FirmAgentProfile, FirmBrainSnapshot } from "@leadpilot/shared";
 import { composeLeadPilotInstructions } from "./leadpilot-instructions.ts";
@@ -77,5 +78,10 @@ describe("composeLeadPilotInstructions", () => {
     expect(instructions).toContain("BASE INSTRUCTIONS");
     expect(instructions).toContain("## Injected Company Context");
     expect(instructions).not.toContain("## Injected Brain Context");
+  });
+
+  it("includes the booking schedule marker in the base prompt file", () => {
+    const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+    expect(instructions).toContain("[[leadpilot.booking_schedule_requested]]");
   });
 });

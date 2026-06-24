@@ -51,11 +51,57 @@ describe("hydrate-chat-events", () => {
     expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({
       type: "message.received",
-      data: { message: "hello", turnId: "turn-1" },
+      data: {
+        message: {
+          role: "user",
+          text: "hello",
+        },
+        turnId: "turn-1",
+      },
     });
     expect(events[1]).toMatchObject({
       type: "message.completed",
-      data: { message: "Hi from E&C Legal.", turnId: "turn-1", finishReason: "stop" },
+      data: {
+        message: {
+          role: "assistant",
+          text: "Hi from E&C Legal.",
+        },
+        turnId: "turn-1",
+        finishReason: "stop",
+      },
+    });
+  });
+
+  it("preserves assistant metadata when hydrating messages", () => {
+    const events = dbMessagesToInitialEvents([
+      {
+        id: "m2",
+        conversationId: "c1",
+        firmId: "f1",
+        role: "assistant",
+        content: "What day and time would you prefer?",
+        eveTurnId: "turn-1",
+        metadata: {
+          ui: { bookingScheduleRequested: true },
+        },
+        createdAt: "2026-01-01T00:00:01.000Z",
+      },
+    ]);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "message.completed",
+      data: {
+        message: {
+          role: "assistant",
+          text: "What day and time would you prefer?",
+          metadata: {
+            ui: {
+              bookingScheduleRequested: true,
+            },
+          },
+        },
+      },
     });
   });
 });

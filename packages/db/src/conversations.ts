@@ -2,6 +2,7 @@ import type {
   ChatHistoryResult,
   Conversation,
   ConversationEvent,
+  ConversationMetadata,
   ConversationMessage,
   FirmBrainSnapshot,
   Visitor,
@@ -291,8 +292,13 @@ export async function persistAssistantMessage(input: {
   content: string;
   eveTurnId: string;
   finishReason?: string;
+  metadata?: ConversationMetadata;
 }): Promise<ConversationMessage | null> {
   const sql = getSql();
+  const metadata: ConversationMetadata = {
+    ...(input.metadata ?? {}),
+    finishReason: input.finishReason ?? null,
+  };
   const rows = toRows<{ id: string; created_at: string }>(await sql`
     INSERT INTO conversation_messages (conversation_id, firm_id, role, content, eve_turn_id, event_type, metadata)
     VALUES (
@@ -302,7 +308,7 @@ export async function persistAssistantMessage(input: {
       ${input.content},
       ${input.eveTurnId},
       'message.completed',
-      ${JSON.stringify({ finishReason: input.finishReason ?? null })}
+      ${JSON.stringify(metadata)}
     )
     ON CONFLICT (conversation_id, eve_turn_id) WHERE eve_turn_id IS NOT NULL DO NOTHING
     RETURNING id, created_at
@@ -323,6 +329,7 @@ export async function persistAssistantMessage(input: {
     content: input.content,
     eveTurnId: input.eveTurnId,
     createdAt: rows[0].created_at,
+    metadata,
   };
 }
 
@@ -577,9 +584,10 @@ export async function getChatHistoryByBrowserSession(input: {
     role: string;
     content: string;
     eve_turn_id: string | null;
+    metadata: Record<string, unknown> | null;
     created_at: string;
   }>(await sql`
-    SELECT id, conversation_id, firm_id, role, content, eve_turn_id, created_at
+    SELECT id, conversation_id, firm_id, role, content, eve_turn_id, metadata, created_at
     FROM conversation_messages
     WHERE conversation_id = ${conversation.id}
       AND firm_id = ${firmId}
@@ -594,6 +602,7 @@ export async function getChatHistoryByBrowserSession(input: {
     role: row.role as ConversationMessage["role"],
     content: row.content,
     eveTurnId: row.eve_turn_id ?? undefined,
+    metadata: row.metadata ? (row.metadata as ConversationMetadata) : undefined,
     createdAt: row.created_at,
   }));
 

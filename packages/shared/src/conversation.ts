@@ -46,6 +46,10 @@ export interface ConversationMetadata {
   readyForLeadCapture?: boolean;
   visitorQuestionNormalized?: string;
   suggestedNextQuestion?: string;
+  finishReason?: string | null;
+  ui?: {
+    bookingScheduleRequested?: boolean;
+  };
 }
 
 export interface ConversationMessage {

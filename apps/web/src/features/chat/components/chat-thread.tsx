@@ -18,6 +18,8 @@ import type { DemoSession } from "../hooks/use-demo-sessions";
 import type { AskPageCopy } from "../copy";
 import { cn } from "@/lib/utils";
 import { shouldShowBookingScheduleButton } from "../booking-datetime";
+import { dbMessagesToInitialEvents } from "../hydrate-chat-events";
+import type { EveMessage } from "../use-flue-agent";
 
 function ThreadHeader({
   title,
@@ -120,18 +122,12 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
         const history = await getChatHistory({
           data: { firmSlug: session.firmSlug, browserSessionId: session.id, conversationId: session.conversationId },
         });
-        if (!cancelled && history.messages.length > 0) {
-          const events = history.messages.map((m: any) => ({
-            type: "message_end" as const,
-            data: { message: { role: m.role === "visitor" ? "user" : m.role, text: m.content } },
-          }));
-          setInitialEvents(events);
-        }
+        if (!cancelled) setInitialEvents(dbMessagesToInitialEvents(history.messages));
       } catch { /* noop */ }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [session.id]);
+  }, [session.conversationId, session.firmSlug, session.id]);
 
   const flueSession = useRef(new FlueSession(
     {
@@ -181,7 +177,7 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
 
   const handleFinish = useCallback(
     async (snapshot: {
-      data: { messages: Array<{ role: string; parts: Array<{ type: string; text?: string }> }> };
+      data: { messages: EveMessage[] };
       session: { streamIndex: number; sessionId?: string };
     }) => {
       const userMsg = snapshot.data.messages.find((m) => m.role === "user");
@@ -200,6 +196,7 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
             userMessage: userText,
             assistantMessage: assistantText,
             sessionId: flueSession.current.state.sessionId ?? "",
+            assistantMetadata: assistantMsg.metadata,
           },
         })
           .then((result) => {
@@ -217,7 +214,7 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
 
   const agent = useFlueAgent({
     session: flueSession.current,
-    initialEvents: initialEvents.length > 0 ? initialEvents : undefined,
+    initialEvents,
     onFinish: handleFinish,
     onSessionChange: handleSessionChange,
   });

@@ -1,5 +1,6 @@
 import type { EveMessage, EveMessagePart } from "./use-flue-agent";
 import { stripRawProviderThinkingFallback } from "@leadpilot/shared";
+import { extractBookingScheduleSignal } from "./booking-datetime";
 
 export const CHAT_MOTION =
   "transition-[color,background-color,border-color,transform,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]";
@@ -20,7 +21,8 @@ function collectVisibleText(parts: readonly EveMessagePart[]) {
 
 export function assistantMessageText(message: EveMessage) {
   if (message.role !== "assistant") return "";
-  return stripRawProviderThinkingFallback(collectVisibleText(message.parts));
+  const visibleText = stripRawProviderThinkingFallback(collectVisibleText(message.parts));
+  return extractBookingScheduleSignal(visibleText).text;
 }
 
 export function messageHasFailedTool(message: EveMessage) {

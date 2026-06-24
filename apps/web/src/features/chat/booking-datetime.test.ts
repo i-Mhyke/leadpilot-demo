@@ -5,6 +5,7 @@ import {
   buildMonthGrid,
   calendarDayKey,
   combineDateAndTime,
+  extractBookingScheduleSignal,
   formatBookingDateTimeLabel,
   formatBookingMonthLabel,
   isPastCalendarDay,
@@ -56,5 +57,14 @@ describe("booking datetime helpers", () => {
   it("detects when the assistant is asking for the booking schedule", () => {
     expect(shouldShowBookingScheduleButton("What day and time would you prefer for them to reach out?")).toBe(true);
     expect(shouldShowBookingScheduleButton("Thanks, we can review this internally.")).toBe(false);
+  });
+
+  it("extracts the structured booking schedule marker from assistant text", () => {
+    expect(
+      extractBookingScheduleSignal("Please choose a time.\n[[leadpilot.booking_schedule_requested]]"),
+    ).toEqual({
+      text: "Please choose a time.",
+      bookingScheduleRequested: true,
+    });
   });
 });

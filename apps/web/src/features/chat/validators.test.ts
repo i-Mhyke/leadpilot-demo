@@ -3,6 +3,7 @@ import {
   ChatRequestError,
   parseBookingSelectionRequest,
   parsePersistChatSessionCursorRequest,
+  parsePersistTurnRequest,
 } from "./validators";
 
 describe("parsePersistChatSessionCursorRequest", () => {
@@ -88,5 +89,30 @@ describe("parseBookingSelectionRequest", () => {
         sessionId: "sess-1",
       }),
     ).toThrow(ChatRequestError);
+  });
+});
+
+describe("parsePersistTurnRequest", () => {
+  it("accepts assistant ui metadata", () => {
+    expect(
+      parsePersistTurnRequest({
+        browserSessionId: "browser-1",
+        firmSlug: "demo-law",
+        userMessage: "hello",
+        assistantMessage: "What day and time would you prefer?",
+        sessionId: "sess-1",
+        assistantMetadata: {
+          ui: {
+            bookingScheduleRequested: true,
+          },
+        },
+      }),
+    ).toMatchObject({
+      assistantMetadata: {
+        ui: {
+          bookingScheduleRequested: true,
+        },
+      },
+    });
   });
 });

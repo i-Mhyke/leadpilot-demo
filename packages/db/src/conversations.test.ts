@@ -7,6 +7,7 @@ import {
   findOrCreateVisitor,
   getChatHistoryByBrowserSession,
   resolveConversationContext,
+  persistAssistantMessage,
   persistVisitorMessage,
   updateConversationCursorByBrowserSession,
   markConversationFailedByEveSession,
@@ -82,6 +83,40 @@ describe("conversation persistence", () => {
       eveTurnId: "turn-1:user",
     });
     expect(sql).toHaveBeenCalledTimes(2);
+  });
+
+  it("persists assistant metadata alongside the assistant turn", async () => {
+    const sql = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "msg-2", created_at: "2026-01-01T00:00:00.000Z" }])
+      .mockResolvedValueOnce(undefined);
+    setSqlForTests(sql as never);
+
+    const result = await persistAssistantMessage({
+      conversationId: "conv-a",
+      firmId: "firm-a",
+      content: "What day and time would you prefer?",
+      eveTurnId: "turn-1",
+      metadata: {
+        ui: { bookingScheduleRequested: true },
+      },
+    });
+
+    expect(result).toMatchObject({
+      id: "msg-2",
+      metadata: {
+        finishReason: null,
+        ui: {
+          bookingScheduleRequested: true,
+        },
+      },
+    });
+    expect(JSON.parse(String(sql.mock.calls[0]?.[5]))).toMatchObject({
+      finishReason: null,
+      ui: {
+        bookingScheduleRequested: true,
+      },
+    });
   });
 
   it("clears stale continuation token when a browser conversation gets a new Eve session", async () => {
@@ -241,6 +276,61 @@ describe("conversation persistence", () => {
       },
     });
     expect(String(sql.mock.calls[1]?.[0])).toContain("c.id =");
+  });
+
+  it("returns assistant message metadata in chat history", async () => {
+    const conversation = {
+      id: "conv-a",
+      firm_id: "firm-a",
+      visitor_id: "visitor-a",
+      eve_session_id: "eve-1",
+      eve_continuation_token: "tok-1",
+      eve_stream_index: 9,
+      status: "open",
+      phase: "listen",
+      source_url: "http://localhost/ask/demo-law",
+      firm_slug: "demo-law",
+      matter_summary: null,
+      primary_service_id: null,
+      last_message_at: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    };
+    const sql = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "firm-a" }])
+      .mockResolvedValueOnce([conversation])
+      .mockResolvedValueOnce([
+        {
+          id: "msg-1",
+          conversation_id: "conv-a",
+          firm_id: "firm-a",
+          role: "assistant",
+          content: "What day and time would you prefer?",
+          eve_turn_id: "turn-1",
+          metadata: {
+            ui: {
+              bookingScheduleRequested: true,
+            },
+          },
+          created_at: "2026-01-01T00:00:01.000Z",
+        },
+      ]);
+    setSqlForTests(sql as never);
+
+    const history = await getChatHistoryByBrowserSession({
+      firmSlug: "demo-law",
+      browserSessionId: "browser-1",
+      conversationId: "conv-a",
+    });
+
+    expect(history.messages[0]).toMatchObject({
+      metadata: {
+        ui: {
+          bookingScheduleRequested: true,
+        },
+      },
+    });
   });
 
   it("persists full Eve cursor by exact conversation id when present", async () => {

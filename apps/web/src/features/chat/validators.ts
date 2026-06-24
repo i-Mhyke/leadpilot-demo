@@ -1,3 +1,5 @@
+import type { ConversationMetadata } from "@leadpilot/shared";
+
 export class ChatRequestError extends Error {
   constructor(
     public readonly code: string,
@@ -133,6 +135,7 @@ export type PersistTurnInput = {
   userMessage: string;
   assistantMessage: string;
   sessionId: string;
+  assistantMetadata?: ConversationMetadata;
 };
 
 export function parsePersistTurnRequest(data: unknown): PersistTurnInput {
@@ -147,11 +150,20 @@ export function parsePersistTurnRequest(data: unknown): PersistTurnInput {
   if (typeof record.sessionId !== "string" || record.sessionId.trim().length === 0) {
     throw new ChatRequestError("invalid_session_id", "sessionId is required.");
   }
+  if (
+    record.assistantMetadata !== undefined &&
+    (record.assistantMetadata === null ||
+      typeof record.assistantMetadata !== "object" ||
+      Array.isArray(record.assistantMetadata))
+  ) {
+    throw new ChatRequestError("invalid_assistant_metadata", "assistantMetadata must be an object when provided.");
+  }
   return {
     ...base,
     userMessage: record.userMessage.trim(),
     assistantMessage: record.assistantMessage.trim(),
     sessionId: record.sessionId.trim(),
+    assistantMetadata: record.assistantMetadata as ConversationMetadata | undefined,
   };
 }
 

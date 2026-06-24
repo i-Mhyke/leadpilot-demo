@@ -1,5 +1,6 @@
 const BOOKING_LOCALE = "en-US";
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export const BOOKING_SCHEDULE_SIGNAL = "[[leadpilot.booking_schedule_requested]]";
 
 export const BOOKING_TIME_SLOTS = Array.from({ length: 20 }, (_, index) => {
   const minutes = 8 * 60 + index * 30;
@@ -61,9 +62,22 @@ export function buildBookingMessage(date: Date) {
   return `Preferred booking date and time: ${formatBookingDateTimeLabel(date)}.`;
 }
 
+export function extractBookingScheduleSignal(message: string) {
+  const bookingScheduleRequested = message.includes(BOOKING_SCHEDULE_SIGNAL);
+  if (!bookingScheduleRequested) {
+    return { text: message, bookingScheduleRequested: false };
+  }
+
+  return {
+    text: message.replaceAll(BOOKING_SCHEDULE_SIGNAL, "").replace(/\n{3,}/g, "\n\n").trim(),
+    bookingScheduleRequested: true,
+  };
+}
+
 export function shouldShowBookingScheduleButton(message: string) {
   const normalized = message.trim().replace(/\s+/g, " ");
   if (!normalized) return false;
+  if (normalized.includes(BOOKING_SCHEDULE_SIGNAL)) return true;
 
   return [
     /what\s+(?:day|date)\s+and\s+time\s+would\s+you\s+prefer/i,

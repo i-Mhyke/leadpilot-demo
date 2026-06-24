@@ -85,6 +85,7 @@ export const persistConversationTurn = createServerFn({ method: "POST" })
       firmId: firm.id,
       content: data.assistantMessage,
       eveTurnId: assistantTurnId,
+      metadata: data.assistantMetadata,
     });
     return { conversationId: conversation.id };
   });

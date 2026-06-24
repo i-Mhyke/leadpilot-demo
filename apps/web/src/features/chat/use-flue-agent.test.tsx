@@ -1,9 +1,13 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FlueSession } from "./flue-session";
 import { useFlueAgent } from "./use-flue-agent";
 
 describe("useFlueAgent", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("publishes the active session id after a turn so the chat can resume later", async () => {
     const session = new FlueSession(
       { host: "", headers: () => ({}), firmSlug: "avance", browserSessionId: "browser-1" },
@@ -11,7 +15,13 @@ describe("useFlueAgent", () => {
     );
     vi.spyOn(session, "send").mockImplementation(async () => {
       session.state.sessionId = "avance/browser-1";
-      return { sessionId: "avance/browser-1", offset: "-1", result: { text: "What day and time would you prefer?" } };
+      return {
+        sessionId: "avance/browser-1",
+        offset: "-1",
+        result: {
+          text: "What day and time would you prefer?\n[[leadpilot.booking_schedule_requested]]",
+        },
+      };
     });
     const onSessionChange = vi.fn();
 
@@ -24,7 +34,9 @@ describe("useFlueAgent", () => {
 
     onSessionChange.mockClear();
 
-    await result.current.send("hello");
+    await act(async () => {
+      await result.current.send("hello");
+    });
 
     await waitFor(() => {
       expect(onSessionChange).toHaveBeenCalledWith({
@@ -32,6 +44,48 @@ describe("useFlueAgent", () => {
         sessionId: "avance/browser-1",
       });
     });
+
+    await waitFor(() => {
+      expect(result.current.data.messages.at(-1)).toMatchObject({
+        role: "assistant",
+        parts: [{ type: "text", text: "What day and time would you prefer?" }],
+        metadata: {
+          ui: {
+            bookingScheduleRequested: true,
+          },
+        },
+      });
+    });
+  });
+
+  it("rehydrates booking schedule metadata from persisted events", async () => {
+    const session = new FlueSession(
+      { host: "", headers: () => ({}), firmSlug: "avance", browserSessionId: "browser-1" },
+      { streamIndex: 4 },
+    );
+    const initialEvents = [
+      {
+        type: "message.completed" as const,
+        data: {
+          message: {
+            role: "assistant" as const,
+            text: "What day and time would you prefer?",
+            metadata: {
+              ui: {
+                bookingScheduleRequested: true,
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const { result } = renderHook(() =>
+      useFlueAgent({
+        session,
+        initialEvents,
+      }),
+    );
 
     await waitFor(() => {
       expect(result.current.data.messages.at(-1)).toMatchObject({

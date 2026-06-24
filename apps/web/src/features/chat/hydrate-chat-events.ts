@@ -30,7 +30,11 @@ export function dbMessagesToInitialEvents(messages: ConversationMessage[]): Chat
       events.push({
         type: "message.received" as const,
         data: {
-          message: message.content,
+          message: {
+            role: "user" as const,
+            text: message.content,
+            metadata: message.metadata,
+          },
           sequence: sequence++,
           turnId,
         },
@@ -41,7 +45,11 @@ export function dbMessagesToInitialEvents(messages: ConversationMessage[]): Chat
     events.push({
       type: "message.completed" as const,
       data: {
-        message: message.content,
+        message: {
+          role: "assistant" as const,
+          text: message.content,
+          metadata: message.metadata,
+        },
         finishReason: "stop" as const,
         sequence: sequence++,
         stepIndex: 0,

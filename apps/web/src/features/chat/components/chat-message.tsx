@@ -3,6 +3,7 @@ import { stripRawProviderThinkingFallback } from "@leadpilot/shared";
 import { cn } from "@/lib/utils";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatToolStrip, dedupeToolParts, isTerminalState } from "./chat-tool-strip";
+import { assistantMessageText } from "../chat-utils";
 
 function collectText(parts: readonly EveMessagePart[]) {
   return parts
@@ -23,7 +24,9 @@ export function ChatMessage({
 }) {
   const isUser = message.role === "user";
   const visibleParts = message.parts.filter((part) => part.type !== "reasoning" && part.type !== "step-start");
-  const textContent = stripRawProviderThinkingFallback(collectText(visibleParts));
+  const textContent = isUser
+    ? stripRawProviderThinkingFallback(collectText(visibleParts))
+    : assistantMessageText(message);
   const toolParts = visibleParts.filter((part) => part.type === "dynamic-tool");
   const hasActiveTools = dedupeToolParts(toolParts).some((part) => !isTerminalState(part.state));
   const showToolStrip =
