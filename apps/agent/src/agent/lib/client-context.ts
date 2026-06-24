@@ -12,12 +12,17 @@ export function parseClientContextHeader(request: Request): ClientContext | null
   if (!raw?.trim()) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<ClientContext>;
-    if (!parsed.firmSlug || typeof parsed.firmSlug !== "string") return null;
+    const firmSlug = typeof parsed.firmSlug === "string" ? parsed.firmSlug.trim() : "";
+    const browserSessionId = typeof parsed.browserSessionId === "string" ? parsed.browserSessionId.trim() : "";
+    if (!firmSlug || !browserSessionId) return null;
     return {
-      firmSlug: parsed.firmSlug,
-      browserSessionId: parsed.browserSessionId || "",
-      localConversationId: parsed.localConversationId,
-      sourceUrl: parsed.sourceUrl,
+      firmSlug,
+      browserSessionId,
+      localConversationId:
+        typeof parsed.localConversationId === "string" && parsed.localConversationId.trim()
+          ? parsed.localConversationId.trim()
+          : undefined,
+      sourceUrl: typeof parsed.sourceUrl === "string" && parsed.sourceUrl.trim() ? parsed.sourceUrl.trim() : undefined,
     };
   } catch { return null; }
 }

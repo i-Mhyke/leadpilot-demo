@@ -83,7 +83,7 @@ export class FlueSession {
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(`Agent error (${response.status}): ${text}`);
+      throw new Error(`Agent error (${response.status}): ${readErrorMessage(text)}`);
     }
     const data = await response.json();
     return { sessionId: id, offset: data.offset || "-1", result: data.result };
@@ -92,4 +92,19 @@ export class FlueSession {
   async *stream(_options?: { signal?: AbortSignal }): AsyncGenerator<FlueStreamEvent> {
     return;
   }
+}
+
+function readErrorMessage(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return "unknown error";
+
+  try {
+    const payload = JSON.parse(trimmed) as Record<string, unknown>;
+    if (typeof payload.message === "string" && payload.message.trim()) return payload.message.trim();
+    if (typeof payload.error === "string" && payload.error.trim()) return payload.error.trim();
+  } catch {
+    // Fall through to the raw body text.
+  }
+
+  return trimmed;
 }

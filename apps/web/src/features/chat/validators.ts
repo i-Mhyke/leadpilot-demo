@@ -1,4 +1,5 @@
 import type { ConversationMetadata } from "@leadpilot/shared";
+import { LEADPILOT_CHAT_MESSAGE_MAX_LENGTH } from "@leadpilot/shared";
 
 export class ChatRequestError extends Error {
   constructor(
@@ -143,6 +144,12 @@ export function parsePersistTurnRequest(data: unknown): PersistTurnInput {
   const record = data as Record<string, unknown>;
   if (typeof record.userMessage !== "string" || record.userMessage.trim().length === 0) {
     throw new ChatRequestError("invalid_user_message", "userMessage is required.");
+  }
+  if (record.userMessage.trim().length > LEADPILOT_CHAT_MESSAGE_MAX_LENGTH) {
+    throw new ChatRequestError(
+      "invalid_user_message",
+      `userMessage must be ${LEADPILOT_CHAT_MESSAGE_MAX_LENGTH} characters or fewer.`,
+    );
   }
   if (typeof record.assistantMessage !== "string" || record.assistantMessage.trim().length === 0) {
     throw new ChatRequestError("invalid_assistant_message", "assistantMessage is required.");

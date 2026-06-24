@@ -115,4 +115,16 @@ describe("parsePersistTurnRequest", () => {
       },
     });
   });
+
+  it("rejects user messages that are too long", () => {
+    expect(() =>
+      parsePersistTurnRequest({
+        browserSessionId: "browser-1",
+        firmSlug: "demo-law",
+        userMessage: "x".repeat(4001),
+        assistantMessage: "What day and time would you prefer?",
+        sessionId: "sess-1",
+      }),
+    ).toThrow(ChatRequestError);
+  });
 });

@@ -16,6 +16,10 @@ describe("chatErrorMessageForVisitor", () => {
     expect(chatErrorMessageForVisitor("Failed to fetch")).toMatch(/reach the assistant/i);
   });
 
+  it("uses a friendly copy for throttled chat requests", () => {
+    expect(chatErrorMessageForVisitor('Agent error (429): {"error":"rate_limited"}')).toMatch(/wait a moment/i);
+  });
+
   it("preserves session cursor for timeout recovery copy", () => {
     expect(shouldPreserveSessionCursorOnError("Turn deadline exceeded")).toBe(true);
     expect(shouldPreserveSessionCursorOnError("Failed to fetch")).toBe(false);

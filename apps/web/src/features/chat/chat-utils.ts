@@ -52,6 +52,10 @@ export function chatErrorMessageForVisitor(error: string | null | undefined) {
     return TEMPORARY_ASSISTANT_ERROR;
   }
 
+  if (/rate[_\s-]?limit|too many requests|forbidden_origin|origin is not allowed|429/i.test(error)) {
+    return "The chat is moving too quickly. Please wait a moment and try again.";
+  }
+
   return "The assistant hit a problem and could not finish that reply. Send your message again to continue.";
 }
 

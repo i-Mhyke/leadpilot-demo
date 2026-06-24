@@ -20,6 +20,7 @@ export const tables = {
   conversations: "conversations",
   conversationMessages: "conversation_messages",
   conversationEvents: "conversation_events",
+  requestRateLimits: "request_rate_limits",
   leadProfiles: "lead_profiles",
   leadScoreEvents: "lead_score_events",
   bookingRequests: "booking_requests",
@@ -74,6 +75,7 @@ export {
   getChatHistoryByBrowserSession,
   type ClientContextInput,
 } from "./conversations.ts";
+export { consumeRequestRateLimit, RateLimitExceededError, type RequestRateLimitPolicy, type RequestRateLimitState } from "./request-rate-limits.ts";
 export {
   appendLeadScoreEvent,
   createBookingRequest,
