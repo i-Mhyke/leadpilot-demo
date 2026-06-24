@@ -1,0 +1,30 @@
+{
+  "name": "leadpilot",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @leadpilot/web",
+    "dev:agent": "npm run dev -w @leadpilot/agent",
+    "build": "npm run build --workspaces --if-present",
+    "build:agent": "npm run build -w @leadpilot/agent",
+    "build:web": "npm run build -w @leadpilot/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate": "tsx packages/db/scripts/migrate.ts",
+    "db:seed:demo-law": "tsx packages/db/scripts/seed-demo-law.ts"
+  },
+  "devDependencies": {
+    "@flue/cli": "^1.0.0-beta.3",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@leadpilot/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "tsx --env-file=../../.env scripts/migrate.ts",
+    "db:seed:demo-law": "tsx --env-file=../../.env scripts/seed-demo-law.ts"
+  },
+  "dependencies": {
+    "@leadpilot/shared": "0.0.0",
+    "@neondatabase/serverless": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.4"
+  }
+}

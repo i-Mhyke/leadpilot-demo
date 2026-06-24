@@ -1,0 +1,31 @@
+{
+  "name": "@leadpilot/agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "flue dev --port 3001",
+    "build": "flue build",
+    "run": "flue run",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flue/runtime": "^1.0.0-beta.3",
+    "@leadpilot/db": "0.0.0",
+    "@leadpilot/domain": "0.0.0",
+    "@leadpilot/firm-rag": "0.0.0",
+    "@leadpilot/legal-rag": "0.0.0",
+    "@leadpilot/shared": "0.0.0",
+    "@opentelemetry/api": "^1.9.1",
+    "hono": "^4.7.0",
+    "croner": "^9.0.0",
+    "valibot": "^1.1.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@flue/cli": "^1.0.0-beta.3",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.4"
+  }
+}

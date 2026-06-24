@@ -1,0 +1,26 @@
+{
+  "name": "@leadpilot/firm-rag",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "tsx --env-file=../../.env ../../node_modules/.bin/vitest run --config vitest.integration.config.ts",
+    "ingest": "tsx --env-file=../../.env scripts/ingest.ts",
+    "smoke": "tsx --env-file=../../.env scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@leadpilot/db": "0.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Build outputs
+dist/
+build/
+.output/
+.nitro/
+
+# Eve agent runtime (compile cache, dev snapshots, sandbox, eval artifacts)
+.eve/
+
+# Eve workflow persistence (local dev runs, events, hooks, streams)
+.workflow-data/
+
+# Framework / hosting
+.tanstack/
+.turbo/
+.vercel/
+.next/
+
+# Test / coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Python/local processing artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+.venv_ocr/
+
+# Local agent / browser tooling
+.playwright-mcp/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
