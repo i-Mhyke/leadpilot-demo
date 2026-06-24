@@ -95,6 +95,7 @@ describe("AdminTenantsPage", () => {
           name: "Acme Law",
           slug: "acme-law",
           industry: "legal",
+          jurisdiction: "Nigeria",
           status: "active",
         },
       ],
@@ -126,6 +127,7 @@ describe("AdminTenantsPage", () => {
     render(<AdminTenantsPage />);
 
     expect(await screen.findByLabelText(/business name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/country/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /create tenant/i })).toBeInTheDocument();
   });
 
@@ -138,6 +140,7 @@ describe("AdminTenantsPage", () => {
           name: "Northline Advisory",
           slug: "northline-advisory",
           industry: "consulting",
+          jurisdiction: "United Kingdom",
           status: "active",
         },
       ],
@@ -146,6 +149,7 @@ describe("AdminTenantsPage", () => {
         name: "Northline Advisory",
         slug: "northline-advisory",
         industry: "consulting",
+        jurisdiction: "United Kingdom",
         status: "active",
       },
       brainConfig: {

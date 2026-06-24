@@ -12,7 +12,7 @@ import {
   saveFirmBrainProvisioning,
   uploadFirmKnowledgeProvisioning,
 } from "./server";
-import { FIRM_INDUSTRY_OPTIONS } from "./validators";
+import { FIRM_COUNTRY_OPTIONS, FIRM_INDUSTRY_OPTIONS } from "./validators";
 
 const INDUSTRY_LABELS: Record<(typeof FIRM_INDUSTRY_OPTIONS)[number], string> = {
   legal: "Legal",
@@ -226,6 +226,7 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
     const formData = new FormData(form);
     const name = String(formData.get("name") ?? "");
     const industry = String(formData.get("industry") ?? "");
+    const country = String(formData.get("country") ?? "");
 
     setIsSubmitting(true);
     setStatusMessage(null);
@@ -235,6 +236,7 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
         data: {
           name,
           industry,
+          country,
         },
       });
       props.onCreated?.(firm);
@@ -262,11 +264,11 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
             Internal only
           </Badge>
           <h2 className="mt-3 text-lg font-semibold tracking-tight">Provision a tenant</h2>
-          <p className="text-muted-foreground mt-1 max-w-xl text-sm leading-relaxed">
-            Enter a business name and industry. The backend will create the firm row and generate
-            the slug that powers both the dashboard and ask pages.
-          </p>
-        </div>
+        <p className="text-muted-foreground mt-1 max-w-xl text-sm leading-relaxed">
+          Enter a business name, industry, and country. The backend will create the firm row and
+          generate the slug that powers both the dashboard and ask pages.
+        </p>
+      </div>
       </div>
 
       <form className="mt-5 space-y-4" onSubmit={handleSubmit} aria-busy={isSubmitting}>
@@ -298,6 +300,29 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
             {FIRM_INDUSTRY_OPTIONS.map((industry) => (
               <option key={industry} value={industry}>
                 {INDUSTRY_LABELS[industry]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="firm-country" className="text-foreground text-sm font-medium">
+            Country
+          </label>
+          <select
+            id="firm-country"
+            name="country"
+            defaultValue=""
+            required
+            disabled={isSubmitting}
+            className={fieldClassName}
+          >
+            <option value="" disabled>
+              Select a country
+            </option>
+            {FIRM_COUNTRY_OPTIONS.map((country) => (
+              <option key={country} value={country}>
+                {country}
               </option>
             ))}
           </select>
@@ -351,6 +376,9 @@ function FirmWorkspaceCard(props: {
           <p className="text-foreground text-lg font-semibold tracking-tight">{props.firm.name}</p>
           <p className="text-muted-foreground mt-1 text-xs uppercase tracking-[0.12em]">
             {INDUSTRY_LABELS[props.firm.industry]}
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs uppercase tracking-[0.12em]">
+            Country: {props.firm.jurisdiction ?? "Not set"}
           </p>
         </div>
         <code className="bg-muted/70 text-foreground rounded-full px-3 py-1 font-mono text-xs">

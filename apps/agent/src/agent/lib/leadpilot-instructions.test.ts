@@ -60,9 +60,9 @@ describe("composeLeadPilotInstructions", () => {
     });
 
     expect(instructions.startsWith("BASE INSTRUCTIONS")).toBe(true);
-    expect(instructions).toContain("## Injected Firm Context");
+    expect(instructions).toContain("## Injected Company Context");
     expect(instructions).toContain("## Injected Brain Context");
-    expect(instructions).toContain("Firm name: Northline Advisory");
+    expect(instructions).toContain("Company name: Northline Advisory");
     expect(instructions).toContain("Brain revision: 4");
     expect(instructions).toContain("Forbidden claims: Never promise outcomes.");
   });
@@ -75,7 +75,7 @@ describe("composeLeadPilotInstructions", () => {
     });
 
     expect(instructions).toContain("BASE INSTRUCTIONS");
-    expect(instructions).toContain("## Injected Firm Context");
+    expect(instructions).toContain("## Injected Company Context");
     expect(instructions).not.toContain("## Injected Brain Context");
   });
 });

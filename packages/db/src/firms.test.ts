@@ -38,24 +38,30 @@ describe("firm provisioning", () => {
         name: "Harbor & Vale Legal",
         slug: "harbor-vale-legal",
         industry: "legal",
-        jurisdiction: null,
+        jurisdiction: "Nigeria",
         website_url: null,
         status: "active",
       },
     ]);
     setSqlForTests(sql as never);
 
-    const firm = await createFirm({ name: " Harbor & Vale Legal ", industry: "legal" });
+    const firm = await createFirm({
+      name: " Harbor & Vale Legal ",
+      industry: "legal",
+      jurisdiction: "Nigeria",
+    });
 
     expect(firm).toEqual({
       id: "firm-1",
       name: "Harbor & Vale Legal",
       slug: "harbor-vale-legal",
       industry: "legal",
+      jurisdiction: "Nigeria",
       status: "active",
     });
     expect(sql).toHaveBeenCalledTimes(1);
     expect(String(sql.mock.calls[0]?.[0])).toContain("lower(name) = lower");
+    expect(String(sql.mock.calls[0]?.[0])).toContain("lower(coalesce(jurisdiction, '')) = lower");
     expect(String(sql.mock.calls[0]?.[0])).toContain("status = 'active'");
   });
 
@@ -70,18 +76,23 @@ describe("firm provisioning", () => {
           name: "Acme Law",
           slug: "acme-law-3",
           industry: "legal",
-          jurisdiction: null,
+          jurisdiction: "Nigeria",
           website_url: null,
           status: "active",
         },
       ]);
     setSqlForTests(sql as never);
 
-    const firm = await createFirm({ name: "Acme Law", industry: "legal" });
+    const firm = await createFirm({
+      name: "Acme Law",
+      industry: "legal",
+      jurisdiction: "Nigeria",
+    });
 
     expect(firm.slug).toBe("acme-law-3");
     expect(String(sql.mock.calls[1]?.[0])).toMatch(/SELECT\s+slug\s+FROM\s+firms/);
     expect(String(sql.mock.calls[2]?.[0])).toContain("INSERT INTO firms");
+    expect(String(sql.mock.calls[2]?.[0])).toContain("jurisdiction");
     expect(String(sql.mock.calls[2]?.[0])).toContain("ON CONFLICT (slug) DO NOTHING");
   });
 
@@ -97,18 +108,23 @@ describe("firm provisioning", () => {
           name: "Harbor & Vale Legal",
           slug: "harbor-vale-legal",
           industry: "legal",
-          jurisdiction: null,
+          jurisdiction: "Nigeria",
           website_url: null,
           status: "active",
         },
       ]);
     setSqlForTests(sql as never);
 
-    const firm = await createFirm({ name: "Harbor & Vale Legal", industry: "legal" });
+    const firm = await createFirm({
+      name: "Harbor & Vale Legal",
+      industry: "legal",
+      jurisdiction: "Nigeria",
+    });
 
     expect(firm.slug).toBe("harbor-vale-legal");
     expect(sql).toHaveBeenCalledTimes(4);
     expect(String(sql.mock.calls[0]?.[0])).toContain("lower(name) = lower");
+    expect(String(sql.mock.calls[0]?.[0])).toContain("lower(coalesce(jurisdiction, '')) = lower");
     expect(String(sql.mock.calls[3]?.[0])).toContain("lower(name) = lower");
   });
 });

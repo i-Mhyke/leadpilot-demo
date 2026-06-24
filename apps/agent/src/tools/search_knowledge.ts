@@ -1,7 +1,9 @@
 import { defineTool } from '@flue/runtime';
 import * as v from 'valibot';
 import { searchFirmKnowledge } from "@leadpilot/firm-rag";
+import { getFirmProfileBySlug } from "@leadpilot/db";
 import { searchLegalKnowledge } from "@leadpilot/legal-rag";
+import { isNigerianFirmCountry } from "../agent/lib/country.ts";
 import { requireSessionBinding } from "../agent/lib/session-scope.ts";
 
 function r(v: unknown) { return JSON.parse(JSON.stringify(v)); }
@@ -17,6 +19,8 @@ export function createSearchKnowledgeTool(firmSlug: string, browserSessionId: st
     }),
     async run({ input }: { input: { query: string; scope: "firm" | "legal" | "both"; limit: number } }) {
       const binding = await requireSessionBinding(firmSlug, browserSessionId);
+      const profile = await getFirmProfileBySlug(firmSlug);
+      const canUseNigerianLegalKnowledge = !("kind" in profile) && isNigerianFirmCountry(profile.firm.jurisdiction);
       const evidence: Array<Record<string, unknown>> = [];
       if (input.scope !== "legal") {
         const firmRes = await searchFirmKnowledge({
@@ -27,7 +31,7 @@ export function createSearchKnowledgeTool(firmSlug: string, browserSessionId: st
           evidence.push(...firmRes.results.map(rr => ({ source: "firm", title: rr.title, text: rr.text })));
         }
       }
-      if (input.scope !== "firm") {
+      if (input.scope !== "firm" && canUseNigerianLegalKnowledge) {
         const legalRes = await searchLegalKnowledge({
           query: input.query, firmId: binding.firmId,
           conversationId: binding.conversationId, limit: input.limit, auditMode: "deferred",

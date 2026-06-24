@@ -75,6 +75,7 @@ describe("FirmProvisioningCard", () => {
       name: "Northline Advisory",
       slug: "northline-advisory",
       industry: "consulting",
+      jurisdiction: "Nigeria",
       status: "active",
     });
 
@@ -82,12 +83,15 @@ describe("FirmProvisioningCard", () => {
 
     await user.type(screen.getByLabelText(/business name/i), "Northline Advisory");
     await user.selectOptions(screen.getByLabelText(/industry/i), "consulting");
+    expect(screen.getByLabelText(/country/i)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/country/i), "Nigeria");
     await user.click(screen.getByRole("button", { name: /create tenant/i }));
 
     expect(serverFns.createFirm).toHaveBeenCalledWith({
       data: {
         name: "Northline Advisory",
         industry: "consulting",
+        country: "Nigeria",
       },
     });
 
@@ -224,8 +228,9 @@ describe("FirmProvisioningCard", () => {
 
     await user.type(screen.getByLabelText(/business name/i), "Northline Advisory");
     await user.selectOptions(screen.getByLabelText(/industry/i), "consulting");
+    await user.selectOptions(screen.getByLabelText(/country/i), "Nigeria");
     await user.click(screen.getByRole("button", { name: /create tenant/i }));
 
-    expect(screen.getByRole("button", { name: /creating tenant/i })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /creating tenant/i })).toBeDisabled();
   });
 });

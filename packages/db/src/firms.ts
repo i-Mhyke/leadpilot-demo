@@ -91,6 +91,7 @@ function slugifyFirmName(name: string): string {
 async function getActiveFirmByIdentity(
   name: string,
   industry: Firm["industry"],
+  jurisdiction: string,
 ): Promise<Firm | null> {
   const sql = getSql();
   const rows = toRows<FirmRow>(await sql`
@@ -98,6 +99,7 @@ async function getActiveFirmByIdentity(
     FROM firms
     WHERE lower(name) = lower(${name})
       AND industry = ${industry}
+      AND lower(coalesce(jurisdiction, '')) = lower(${jurisdiction})
       AND status = 'active'
     LIMIT 1
   `);
@@ -295,6 +297,7 @@ export async function getFirmProfileBySlug(slug: string): Promise<FirmAgentProfi
 export async function createFirm(input: {
   name: string;
   industry: Firm["industry"];
+  jurisdiction: string;
 }): Promise<Firm> {
   const name = normalizeFirmName(input.name);
   if (!name) {
@@ -306,7 +309,7 @@ export async function createFirm(input: {
     throw new Error("Firm name must contain at least one letter or number.");
   }
 
-  const existing = await getActiveFirmByIdentity(name, input.industry);
+  const existing = await getActiveFirmByIdentity(name, input.industry, input.jurisdiction);
   if (existing) {
     return existing;
   }
@@ -316,8 +319,8 @@ export async function createFirm(input: {
     const slug = pickAvailableSlug(baseSlug, usedSlugs);
     const sql = getSql();
     const rows = toRows<FirmRow>(await sql`
-      INSERT INTO firms (name, slug, industry, status)
-      VALUES (${name}, ${slug}, ${input.industry}, 'active')
+      INSERT INTO firms (name, slug, industry, jurisdiction, status)
+      VALUES (${name}, ${slug}, ${input.industry}, ${input.jurisdiction}, 'active')
       ON CONFLICT (slug) DO NOTHING
       RETURNING id, name, slug, industry, jurisdiction, website_url, status
     `);
@@ -327,7 +330,7 @@ export async function createFirm(input: {
       return mapFirm(inserted);
     }
 
-    const retry = await getActiveFirmByIdentity(name, input.industry);
+    const retry = await getActiveFirmByIdentity(name, input.industry, input.jurisdiction);
     if (retry) {
       return retry;
     }

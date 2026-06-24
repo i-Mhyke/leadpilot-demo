@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { firmProfileContextForModel } from "../../src/agent/lib/firm-context.ts";
 
 describe("firmProfileContextForModel", () => {
-  it("includes firm name and tells the model not to re-fetch the profile", () => {
+  it("includes company name, country, and tells the model not to re-fetch the profile", () => {
     const lines = firmProfileContextForModel({
       firm: {
         id: "firm-1",
@@ -48,8 +48,46 @@ describe("firmProfileContextForModel", () => {
       },
     });
 
-    expect(lines.some((line) => line.includes("E&C Legal"))).toBe(true);
+    expect(lines.some((line) => line.includes("Company name: E&C Legal"))).toBe(true);
+    expect(lines.some((line) => line.includes("Country: Nigeria"))).toBe(true);
+    expect(lines.some((line) => line.includes("Nigerian legal KB access: allowed"))).toBe(true);
     expect(lines.some((line) => line.includes("do not call get_firm_profile"))).toBe(true);
     expect(lines.some((line) => line.includes("Startup Law"))).toBe(true);
+  });
+
+  it("disables the Nigerian legal KB for non-Nigerian firms", () => {
+    const lines = firmProfileContextForModel({
+      firm: {
+        id: "firm-1",
+        slug: "northline",
+        name: "Northline Advisory",
+        industry: "consulting",
+        jurisdiction: "United Kingdom",
+        status: "active",
+      },
+      services: [],
+      bookingPolicy: {
+        contactCaptureThreshold: 55,
+        bookingOfferThreshold: 70,
+        requiredContactFields: ["name", "email"],
+        bookingMode: "request_only",
+        allowPhoneCapture: true,
+      },
+      pricingPolicy: {
+        canDiscussFees: false,
+        feeSummary: "Custom quotes after review",
+        feeDisclaimer: "",
+        requiresHumanForFeeQuestions: true,
+      },
+      toneProfile: {
+        voice: "warm",
+        formalityLevel: "professional",
+        preferredGreeting: "Hi, I'm the intake assistant for Northline Advisory.",
+        avoidPhrases: [],
+      },
+    });
+
+    expect(lines.some((line) => line.includes("Country: United Kingdom"))).toBe(true);
+    expect(lines.some((line) => line.includes("Nigerian legal KB access: disabled"))).toBe(true);
   });
 });

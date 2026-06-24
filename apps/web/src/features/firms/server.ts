@@ -26,7 +26,11 @@ export type FirmProvisioningPageState = {
 export const createFirmProvisioning = createServerFn({ method: "POST" })
   .validator((data: unknown) => parseFirmProvisioningRequest(data))
   .handler(async ({ data }): Promise<Firm> => {
-    return createFirm(data);
+    return createFirm({
+      name: data.name,
+      industry: data.industry,
+      jurisdiction: data.country,
+    });
   });
 
 export const loadFirmProvisioningState = createServerFn({ method: "GET" })

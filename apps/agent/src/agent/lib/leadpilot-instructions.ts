@@ -13,7 +13,7 @@ export function composeLeadPilotInstructions(input: {
   return [
     input.baseInstructions,
     "",
-    ...(profileLines.length > 0 ? ["## Injected Firm Context", ...profileLines] : []),
+    ...(profileLines.length > 0 ? ["## Injected Company Context", ...profileLines] : []),
     ...(brainLines.length > 0 ? ["", "## Injected Brain Context", ...brainLines] : []),
   ].join("\n");
 }
