@@ -33,7 +33,7 @@ function ThreadHeader({
   const isLive = status === "streaming" || status === "submitted";
 
   return (
-    <div className="border-border/50 flex shrink-0 items-center justify-between gap-4 border-b px-5 py-4 md:px-7">
+    <div className="border-border/50 hidden shrink-0 items-center justify-between gap-4 border-b px-5 py-4 md:flex md:px-7">
       <div className="min-w-0">
         <p className="text-foreground truncate text-sm font-semibold tracking-tight">{title}</p>
         <p className="text-muted-foreground mt-0.5 truncate text-xs">{subtitle}</p>
@@ -100,7 +100,28 @@ function ComposerFooter({
 }) {
   return (
     <div className="border-border/50 bg-[#fbfbfc] shrink-0 border-t px-4 py-4 md:px-7 md:py-5">
-      <div className="mx-auto w-full max-w-2xl">{children}</div>
+      <div className="mx-auto w-full max-w-2xl">
+        {children}
+        <p className="text-muted-foreground mt-3 text-center text-[11px] leading-relaxed">
+          <span className="text-foreground/80 font-medium">{CHAT_COPY.demoFineTuningTitle}.</span>{" "}
+          {CHAT_COPY.demoFineTuningDisclaimer}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function DemoFineTuningCallout() {
+  return (
+    <div
+      className="mt-8 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3.5"
+      role="note"
+      aria-label={CHAT_COPY.demoFineTuningTitle}
+    >
+      <p className="text-foreground text-sm font-medium">{CHAT_COPY.demoFineTuningTitle}</p>
+      <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+        {CHAT_COPY.demoFineTuningDisclaimer}
+      </p>
     </div>
   );
 }
@@ -311,6 +332,8 @@ export function ChatThread({ session, onSessionUpdate, onStartNewConversation, c
                   onSelect={(prompt) => agent.send(prompt)}
                 />
               </div>
+
+              <DemoFineTuningCallout />
             </div>
           </div>
 

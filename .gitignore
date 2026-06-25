@@ -49,6 +49,7 @@ __pycache__/
 # Demo knowledge base (scraped company profiles - not deployed)
 demos_kb/
 leads/
+exports/
 
 # Logs
 *.log

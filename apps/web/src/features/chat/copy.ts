@@ -31,6 +31,11 @@ export const CHAT_COPY = {
     "LeadPilot could not recover the last reply on this conversation. Start a new conversation to continue safely.",
   toolRunning: "Checking sources",
   toolComplete: "Done",
+  demoFineTuningTitle: "Demo preview",
+  demoFineTuningDisclaimer:
+    "Replies here follow this firm's sample knowledge and intake style. In your deployment, LeadPilot fine-tunes tone, qualification flow, and guardrails to match how you want to sound and what you want to capture.",
+  dashboardCaptureNote:
+    "Open Dashboard to see captured leads, conversation lists, and how each inquiry is routed and segmented.",
 } as const;
 
 export type AskPageCopy = {

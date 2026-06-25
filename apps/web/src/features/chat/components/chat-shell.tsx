@@ -11,6 +11,64 @@ import { CHAT_COPY, resolveAskPageCopy } from "../copy";
 import type { DemoSession } from "../hooks/use-demo-sessions";
 import { ChatThread } from "./chat-thread";
 
+function DashboardLink({
+  firmSlug,
+  className,
+}: {
+  firmSlug: string;
+  className?: string;
+}) {
+  return (
+    <Link
+      to="/dashboard/$firmSlug"
+      params={{ firmSlug }}
+      className={cn(
+        "text-foreground/80 hover:text-foreground inline-flex items-center gap-2 rounded-lg px-2 py-2 text-[13px] font-medium",
+        CHAT_MOTION,
+        "hover:bg-card/70 active:scale-[0.98]",
+        className,
+      )}
+    >
+      Open firm dashboard
+      <ArrowSquareOut className="ml-auto size-3.5" aria-hidden />
+    </Link>
+  );
+}
+
+function MobileDashboardButton({ firmSlug }: { firmSlug: string }) {
+  return (
+    <Button
+      asChild
+      size="sm"
+      variant="secondary"
+      className={cn("shrink-0 rounded-full px-3.5", CHAT_MOTION, "active:scale-[0.98]")}
+    >
+      <Link to="/dashboard/$firmSlug" params={{ firmSlug }}>
+        Dashboard
+        <ArrowSquareOut className="size-3.5" aria-hidden />
+      </Link>
+    </Button>
+  );
+}
+function DashboardCaptureNote({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-muted-foreground text-[11px] leading-relaxed", className)}>
+      {CHAT_COPY.dashboardCaptureNote}
+    </p>
+  );
+}
+
+function MobileChatHeader({ firmName, firmSlug }: { firmName: string; firmSlug: string }) {
+  return (
+    <div className="border-border/50 shrink-0 border-b bg-[#fbfbfc] px-4 py-3 md:hidden">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-foreground min-w-0 truncate text-sm font-semibold tracking-tight">{firmName}</p>
+        <MobileDashboardButton firmSlug={firmSlug} />
+      </div>
+      <DashboardCaptureNote className="mt-2" />
+    </div>
+  );
+}
 function SessionSidebar({
   firmSlug,
   firmName,
@@ -127,74 +185,10 @@ function SessionSidebar({
 
       <div className="mt-auto space-y-2 border-t border-border/50 p-3">
         <p className="text-muted-foreground px-1 text-[11px]">{CHAT_COPY.sidebarFootnote}</p>
-        <Link
-          to="/dashboard/$firmSlug"
-          params={{ firmSlug }}
-          className={cn(
-            "text-foreground/80 hover:text-foreground inline-flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[13px] font-medium",
-            CHAT_MOTION,
-            "hover:bg-card/70 active:scale-[0.98]",
-          )}
-        >
-          Open firm dashboard
-          <ArrowSquareOut className="ml-auto size-3.5" aria-hidden />
-        </Link>
+        <DashboardCaptureNote className="px-1" />
+        <DashboardLink firmSlug={firmSlug} className="w-full" />
       </div>
     </aside>
-  );
-}
-
-function MobileSessionTabs({
-  sessions,
-  activeSessionId,
-  selectSession,
-  createSession,
-}: {
-  sessions: DemoSession[];
-  activeSessionId: string | null;
-  selectSession: (id: string) => void;
-  createSession: () => DemoSession;
-}) {
-  return (
-    <div className="border-border/50 shrink-0 border-b bg-[#fbfbfc] p-2 md:hidden">
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1 overflow-x-auto">
-          <div className="flex gap-1.5 pr-2">
-            {sessions.map((session) => {
-              const isActive = session.id === activeSessionId;
-              return (
-                <button
-                  key={session.id}
-                  type="button"
-                  onClick={() => selectSession(session.id)}
-                  className={cn(
-                    "max-w-[11rem] shrink-0 truncate rounded-full px-3 py-2 text-xs font-medium",
-                    CHAT_MOTION,
-                    "active:scale-[0.98]",
-                    isActive
-                      ? "bg-foreground text-background"
-                      : "bg-muted/70 text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  {session.customerName}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={createSession}
-          className={cn(
-            "border-border/60 bg-card text-muted-foreground hover:bg-muted shrink-0 rounded-full border px-3 py-2 text-xs font-medium",
-            CHAT_MOTION,
-            "active:scale-[0.98]",
-          )}
-        >
-          New
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -272,12 +266,7 @@ export function ChatShell({
 
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:pl-4">
           <div className="border-border/50 bg-card flex h-full min-h-0 flex-col overflow-hidden rounded-none border-0 md:rounded-2xl md:border md:shadow-[0_20px_40px_-24px_rgba(28,35,41,0.18)]">
-            <MobileSessionTabs
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              selectSession={selectSession}
-              createSession={createSession}
-            />
+            <MobileChatHeader firmName={displayFirmName} firmSlug={firmSlug} />
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {activeSession ? (
