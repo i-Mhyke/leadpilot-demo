@@ -5,7 +5,6 @@ import { registerObservability } from "./instrumentation.ts";
 import {
   corsPreflightResponse,
   getAllowedChatOrigins,
-  isAllowedChatOrigin,
   LEADPILOT_CORS_HEADERS,
   resolveCorsAllowedOrigin,
 } from "./agent/lib/cors.ts";
@@ -33,9 +32,10 @@ app.use("*", async (c, next) => {
 
   const path = c.req.path;
   const isChatIngress = isLeadPilotChatIngressPath(path);
-  const origin = isChatIngress ? resolveCorsAllowedOrigin(c.req.raw) : null;
+  const isCorsRelevantRoute = isChatIngress || path.startsWith("/agents/");
+  const origin = isCorsRelevantRoute ? resolveCorsAllowedOrigin(c.req.raw) : null;
 
-  if (isChatIngress && !isAllowedChatOrigin(c.req.raw)) {
+  if (isCorsRelevantRoute && !origin && c.req.header("Origin")) {
     return c.json({ error: "forbidden_origin", message: "This chat origin is not allowed." }, 403);
   }
 
