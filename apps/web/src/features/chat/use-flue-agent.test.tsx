@@ -98,4 +98,42 @@ describe("useFlueAgent", () => {
       });
     });
   });
+
+  it("infers the booking schedule flag from common follow-up wording even without the marker", async () => {
+    const session = new FlueSession(
+      { host: "", headers: () => ({}), firmSlug: "avance", browserSessionId: "browser-1" },
+      { streamIndex: 4 },
+    );
+    vi.spyOn(session, "send").mockImplementation(async () => {
+      session.state.sessionId = "avance/browser-1";
+      return {
+        sessionId: "avance/browser-1",
+        offset: "-1",
+        result: {
+          text: "Please share a preferred date and time for contact.",
+        },
+      };
+    });
+
+    const { result } = renderHook(() =>
+      useFlueAgent({
+        session,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.send("hello");
+    });
+
+    await waitFor(() => {
+      expect(result.current.data.messages.at(-1)).toMatchObject({
+        role: "assistant",
+        metadata: {
+          ui: {
+            bookingScheduleRequested: true,
+          },
+        },
+      });
+    });
+  });
 });

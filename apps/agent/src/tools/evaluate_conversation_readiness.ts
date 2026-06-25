@@ -32,6 +32,8 @@ export function createEvaluateConversationReadinessTool(firmSlug: string, browse
         scoreFactors: normalizeLeadScoreFactors(input.scoreFactors as Record<string, number>),
         contactCaptureThreshold: bp.contactCaptureThreshold,
         bookingOfferThreshold: bp.bookingOfferThreshold,
+        explicitHelpIntent: input.explicitHelpIntent as boolean | undefined,
+        highUrgency: input.highUrgency as boolean | undefined,
       });
       return r({
         score: result.score, temperature: result.temperature,

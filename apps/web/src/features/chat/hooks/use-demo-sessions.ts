@@ -65,6 +65,19 @@ function writeActiveSessionId(firmSlug: string, sessionId: string) {
   writeStorage(ACTIVE_KEY, { ...map, [firmSlug]: sessionId });
 }
 
+export function clearStoredSessionsForFirm(firmSlug: string) {
+  if (typeof window === "undefined") return;
+  const stored = readStorage<DemoSession[]>(SESSIONS_KEY, []);
+  writeStorage(
+    SESSIONS_KEY,
+    stored.filter((session) => session.firmSlug !== firmSlug),
+  );
+  const activeMap = readActiveSessionMap();
+  if (!(firmSlug in activeMap)) return;
+  const { [firmSlug]: _removed, ...rest } = activeMap;
+  writeStorage(ACTIVE_KEY, rest);
+}
+
 function seedSessions(firmSlug: string): DemoSession[] {
   const now = new Date().toISOString();
   return [

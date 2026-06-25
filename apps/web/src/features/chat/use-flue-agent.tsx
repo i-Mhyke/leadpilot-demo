@@ -98,10 +98,11 @@ export function useFlueAgent(options: {
       const responsePayload = unwrapAssistantResponse(result);
       const rawResponseText = responsePayload.text ?? "";
       const extractedSignal = extractBookingScheduleSignal(rawResponseText);
-      const bookingScheduleRequested =
-        responsePayload.ui?.bookingScheduleRequested ??
-        extractedSignal.bookingScheduleRequested ??
-        shouldShowBookingScheduleButton(extractedSignal.text);
+      const bookingScheduleRequested = Boolean(
+        responsePayload.ui?.bookingScheduleRequested ||
+          extractedSignal.bookingScheduleRequested ||
+          shouldShowBookingScheduleButton(extractedSignal.text),
+      );
       const responseText =
         extractedSignal.text.trim().length > 0
           ? extractedSignal.text
@@ -167,7 +168,9 @@ function normalizeHydratedMessage(evt: FlueStreamEvent): EveMessage | undefined 
   const role = evt.type === "message.received" ? "user" : message.role;
   const normalizedText =
     role === "assistant" ? extractBookingScheduleSignal(message.text) : { text: message.text, bookingScheduleRequested: false };
-  const metadata = normalizedText.bookingScheduleRequested
+  const bookingScheduleRequested =
+    normalizedText.bookingScheduleRequested || (role === "assistant" && shouldShowBookingScheduleButton(message.text));
+  const metadata = bookingScheduleRequested
     ? {
         ...(message.metadata ?? {}),
         ui: { ...(message.metadata?.ui ?? {}), bookingScheduleRequested: true },
@@ -176,10 +179,10 @@ function normalizeHydratedMessage(evt: FlueStreamEvent): EveMessage | undefined 
   const text =
     normalizedText.text.trim().length > 0
       ? normalizedText.text
-      : metadata?.ui?.bookingScheduleRequested
+      : bookingScheduleRequested
         ? BOOKING_SCHEDULE_FALLBACK_TEXT
         : "";
-  if (!text && !metadata?.ui?.bookingScheduleRequested) return undefined;
+  if (!text && !bookingScheduleRequested) return undefined;
 
   return {
     role,

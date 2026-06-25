@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { useDemoSessions } from "./use-demo-sessions";
+import { clearStoredSessionsForFirm, useDemoSessions } from "./use-demo-sessions";
 
 describe("useDemoSessions", () => {
   beforeEach(() => {
@@ -44,5 +44,40 @@ describe("useDemoSessions", () => {
     expect(result.current.sessions).toHaveLength(1);
     expect(result.current.sessions[0]?.customerName).toBe("New conversation");
     expect(result.current.sessions[0]?.matterLabel).toBe("No topic yet");
+  });
+
+  it("clears stored sessions for one firm without touching others", () => {
+    window.localStorage.setItem(
+      "leadpilot.demo.sessions",
+      JSON.stringify([
+        {
+          id: "session-1",
+          firmSlug: "avance",
+          customerName: "New conversation",
+          matterLabel: "No topic yet",
+          updatedAt: "2026-06-24T15:00:00.000Z",
+        },
+        {
+          id: "session-2",
+          firmSlug: "demo-law",
+          customerName: "New conversation",
+          matterLabel: "No topic yet",
+          updatedAt: "2026-06-24T15:00:00.000Z",
+        },
+      ]),
+    );
+    window.localStorage.setItem(
+      "leadpilot.demo.activeSessionId",
+      JSON.stringify({ avance: "session-1", "demo-law": "session-2" }),
+    );
+
+    clearStoredSessionsForFirm("avance");
+
+    expect(JSON.parse(window.localStorage.getItem("leadpilot.demo.sessions") ?? "[]")).toEqual([
+      expect.objectContaining({ firmSlug: "demo-law" }),
+    ]);
+    expect(JSON.parse(window.localStorage.getItem("leadpilot.demo.activeSessionId") ?? "{}")).toEqual({
+      "demo-law": "session-2",
+    });
   });
 });

@@ -9,6 +9,7 @@ const serverFns = vi.hoisted(() => ({
   loadFirm: vi.fn() as Mock,
   kbUpload: vi.fn() as Mock,
   brainUpload: vi.fn() as Mock,
+  deleteFirm: vi.fn() as Mock,
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -17,6 +18,7 @@ vi.mock("@tanstack/react-start", () => ({
     if (fn === "loadFirmProvisioningState") return serverFns.loadFirm;
     if (fn === "uploadFirmKnowledgeProvisioning") return serverFns.kbUpload;
     if (fn === "saveFirmBrainProvisioning") return serverFns.brainUpload;
+    if (fn === "deleteFirmProvisioning") return serverFns.deleteFirm;
     throw new Error(`Unexpected server fn: ${String(fn)}`);
   },
 }));
@@ -50,6 +52,7 @@ vi.mock("./server", () => ({
   loadFirmProvisioningState: "loadFirmProvisioningState",
   saveFirmBrainProvisioning: "saveFirmBrainProvisioning",
   uploadFirmKnowledgeProvisioning: "uploadFirmKnowledgeProvisioning",
+  deleteFirmProvisioning: "deleteFirmProvisioning",
 }));
 
 describe("FirmProvisioningCard", () => {
@@ -58,6 +61,7 @@ describe("FirmProvisioningCard", () => {
     serverFns.loadFirm.mockReset();
     serverFns.kbUpload.mockReset();
     serverFns.brainUpload.mockReset();
+    serverFns.deleteFirm.mockReset();
     window.localStorage.clear();
   });
 
@@ -84,14 +88,14 @@ describe("FirmProvisioningCard", () => {
     await user.type(screen.getByLabelText(/business name/i), "Northline Advisory");
     await user.selectOptions(screen.getByLabelText(/industry/i), "consulting");
     expect(screen.getByLabelText(/country/i)).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(/country/i), "Nigeria");
+    await user.selectOptions(screen.getByLabelText(/country/i), "NG");
     await user.click(screen.getByRole("button", { name: /create tenant/i }));
 
     expect(serverFns.createFirm).toHaveBeenCalledWith({
       data: {
         name: "Northline Advisory",
         industry: "consulting",
-        country: "Nigeria",
+        jurisdiction: "NG",
       },
     });
 
@@ -228,7 +232,7 @@ describe("FirmProvisioningCard", () => {
 
     await user.type(screen.getByLabelText(/business name/i), "Northline Advisory");
     await user.selectOptions(screen.getByLabelText(/industry/i), "consulting");
-    await user.selectOptions(screen.getByLabelText(/country/i), "Nigeria");
+    await user.selectOptions(screen.getByLabelText(/country/i), "NG");
     await user.click(screen.getByRole("button", { name: /create tenant/i }));
 
     expect(await screen.findByRole("button", { name: /creating tenant/i })).toBeDisabled();

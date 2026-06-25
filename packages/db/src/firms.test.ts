@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { setSqlForTests } from "./client.ts";
-import { createFirm, getFirmBookingPolicy, getFirmPricingPolicy } from "./firms.ts";
+import { createFirm, deleteFirmBySlug, getFirmBookingPolicy, getFirmPricingPolicy } from "./firms.ts";
 
 describe("firm policies", () => {
   beforeEach(() => {
@@ -126,5 +126,94 @@ describe("firm provisioning", () => {
     expect(String(sql.mock.calls[0]?.[0])).toContain("lower(name) = lower");
     expect(String(sql.mock.calls[0]?.[0])).toContain("lower(coalesce(jurisdiction, '')) = lower");
     expect(String(sql.mock.calls[3]?.[0])).toContain("lower(name) = lower");
+  });
+});
+
+describe("firm deletion", () => {
+  beforeEach(() => {
+    setSqlForTests(null);
+  });
+
+  function mockFirmRow(overrides: Partial<{
+    id: string;
+    name: string;
+    slug: string;
+    industry: string;
+    jurisdiction: string;
+    status: string;
+  }> = {}) {
+    return {
+      id: "firm-1",
+      name: "Harbor & Vale Legal",
+      slug: "harbor-vale-legal",
+      industry: "legal",
+      jurisdiction: "Nigeria",
+      website_url: null,
+      status: "active",
+      ...overrides,
+    };
+  }
+
+  it("deletes explicit non-cascade tables and the firm row", async () => {
+    const sql = vi
+      .fn(async (_strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> => [])
+      .mockResolvedValueOnce([mockFirmRow()])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    setSqlForTests(sql as never);
+
+    const firm = await deleteFirmBySlug("harbor-vale-legal");
+
+    expect(firm).toMatchObject({ slug: "harbor-vale-legal" });
+    expect(sql).toHaveBeenCalledTimes(5);
+    expect(String(sql.mock.calls[1]?.[0])).toContain("DELETE FROM retrieval_logs");
+    expect(String(sql.mock.calls[2]?.[0])).toContain("DELETE FROM legal_unit_chunks");
+    expect(String(sql.mock.calls[3]?.[0])).toContain("DELETE FROM request_rate_limits");
+    expect(String(sql.mock.calls[4]?.[0])).toContain("DELETE FROM firms");
+  });
+
+  it("returns not_found without running delete statements", async () => {
+    const sql = vi.fn(async () => []);
+    setSqlForTests(sql as never);
+
+    const result = await deleteFirmBySlug("missing-firm");
+
+    expect(result).toEqual({ kind: "not_found", slug: "missing-firm" });
+    expect(sql).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes inactive firms for admin purge", async () => {
+    const sql = vi
+      .fn(async (_strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> => [])
+      .mockResolvedValueOnce([mockFirmRow({ status: "inactive", slug: "old-firm" })])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    setSqlForTests(sql as never);
+
+    const firm = await deleteFirmBySlug("old-firm");
+
+    expect(firm).toMatchObject({ slug: "old-firm", status: "inactive" });
+    expect(sql).toHaveBeenCalledTimes(5);
+  });
+
+  it("is idempotent when the firm row is already gone", async () => {
+    const sql = vi
+      .fn(async (_strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> => [])
+      .mockResolvedValueOnce([mockFirmRow()])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    setSqlForTests(sql as never);
+
+    await deleteFirmBySlug("harbor-vale-legal");
+    const second = await deleteFirmBySlug("harbor-vale-legal");
+
+    expect(second).toEqual({ kind: "not_found", slug: "harbor-vale-legal" });
   });
 });

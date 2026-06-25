@@ -7,6 +7,7 @@ import type {
   FirmToneProfile,
 } from "@leadpilot/shared";
 import { getSql } from "./client.ts";
+import { buildFirmDeletionStatements } from "./firm-deletion.ts";
 import { rows as toRows } from "./sql.ts";
 
 export type FirmNotFound = { kind: "not_found"; slug: string };
@@ -166,6 +167,13 @@ const DEFAULT_TONE: FirmToneProfile = {
 export async function getFirmBySlug(
   slug: string,
 ): Promise<Firm | FirmNotFound | FirmInactive> {
+  const row = await getFirmRecordBySlug(slug);
+  if (!row) return { kind: "not_found", slug };
+  if (row.status !== "active") return { kind: "inactive", slug };
+  return mapFirm(row);
+}
+
+async function getFirmRecordBySlug(slug: string): Promise<FirmRow | null> {
   const sql = getSql();
   const rows = toRows<FirmRow>(await sql`
     SELECT id, name, slug, industry, jurisdiction, website_url, status
@@ -173,10 +181,7 @@ export async function getFirmBySlug(
     WHERE slug = ${slug}
     LIMIT 1
   `);
-  const row = rows[0];
-  if (!row) return { kind: "not_found", slug };
-  if (row.status !== "active") return { kind: "inactive", slug };
-  return mapFirm(row);
+  return rows[0] ?? null;
 }
 
 export async function getFirmBookingPolicy(firmId: string): Promise<FirmBookingPolicy> {
@@ -337,4 +342,17 @@ export async function createFirm(input: {
   }
 
   throw new Error(`Unable to provision firm "${name}" after repeated slug collisions.`);
+}
+
+export async function deleteFirmBySlug(slug: string): Promise<Firm | FirmNotFound> {
+  const row = await getFirmRecordBySlug(slug);
+  if (!row) return { kind: "not_found", slug };
+
+  const firm = mapFirm(row);
+  const sql = getSql();
+  await sql.transaction((tx) =>
+    buildFirmDeletionStatements({ firmId: firm.id, firmSlug: firm.slug }, tx),
+  );
+
+  return firm;
 }

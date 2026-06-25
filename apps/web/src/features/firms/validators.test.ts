@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { FIRM_JURISDICTION_OPTIONS } from "@leadpilot/shared";
 import {
   FirmProvisioningRequestError,
-  FIRM_COUNTRY_OPTIONS,
   FIRM_INDUSTRY_OPTIONS,
   MarkdownUploadRequestError,
   parseFirmBrainUploadRequest,
@@ -15,12 +15,26 @@ describe("firm provisioning validators", () => {
       parseFirmProvisioningRequest({
         name: "  Northline Advisory  ",
         industry: "consulting",
-        country: "Nigeria",
+        jurisdiction: "NG",
       }),
     ).toEqual({
       name: "Northline Advisory",
       industry: "consulting",
-      country: "Nigeria",
+      jurisdiction: "Nigeria",
+    });
+  });
+
+  it("accepts canonical jurisdiction names", () => {
+    expect(
+      parseFirmProvisioningRequest({
+        name: "Northline Advisory",
+        industry: "consulting",
+        jurisdiction: "United Kingdom",
+      }),
+    ).toEqual({
+      name: "Northline Advisory",
+      industry: "consulting",
+      jurisdiction: "United Kingdom",
     });
   });
 
@@ -29,7 +43,7 @@ describe("firm provisioning validators", () => {
       parseFirmProvisioningRequest({
         name: "   ",
         industry: "legal",
-        country: "Nigeria",
+        jurisdiction: "NG",
       }),
     ).toThrowError(FirmProvisioningRequestError);
   });
@@ -39,17 +53,17 @@ describe("firm provisioning validators", () => {
       parseFirmProvisioningRequest({
         name: "Northline Advisory",
         industry: "media",
-        country: "Nigeria",
+        jurisdiction: "NG",
       }),
     ).toThrowError(/industry/i);
   });
 
-  it("rejects unknown countries", () => {
+  it("rejects unknown jurisdictions", () => {
     expect(() =>
       parseFirmProvisioningRequest({
         name: "Northline Advisory",
         industry: "consulting",
-        country: "Atlantis",
+        jurisdiction: "Atlantis",
       }),
     ).toThrowError(/country/i);
   });
@@ -59,7 +73,7 @@ describe("firm provisioning validators", () => {
       parseFirmProvisioningRequest({
         name: "Northline Advisory",
         industry: "consulting",
-        country: "Nigeria",
+        jurisdiction: "NG",
         slug: "northline-advisory",
       }),
     ).toThrowError(/Unexpected field/i);
@@ -70,9 +84,10 @@ describe("firm provisioning validators", () => {
     expect(FIRM_INDUSTRY_OPTIONS).toContain("general");
   });
 
-  it("exposes the supported countries for the form", () => {
-    expect(FIRM_COUNTRY_OPTIONS).toContain("Nigeria");
-    expect(FIRM_COUNTRY_OPTIONS).toContain("Other / International");
+  it("exposes the full jurisdiction list for the form", () => {
+    expect(FIRM_JURISDICTION_OPTIONS.length).toBeGreaterThan(200);
+    expect(FIRM_JURISDICTION_OPTIONS.some((entry) => entry.code === "NG")).toBe(true);
+    expect(FIRM_JURISDICTION_OPTIONS.some((entry) => entry.name === "Nigeria")).toBe(true);
   });
 
   it("accepts markdown uploads with .md filenames", () => {

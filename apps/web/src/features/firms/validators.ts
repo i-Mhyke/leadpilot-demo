@@ -1,3 +1,8 @@
+import {
+  FIRM_JURISDICTION_OPTIONS,
+  resolveFirmJurisdiction,
+} from "@leadpilot/shared";
+
 export const FIRM_INDUSTRY_OPTIONS = [
   "legal",
   "healthcare",
@@ -9,20 +14,9 @@ export const FIRM_INDUSTRY_OPTIONS = [
 
 export type FirmIndustryOption = (typeof FIRM_INDUSTRY_OPTIONS)[number];
 
-export const FIRM_COUNTRY_OPTIONS = [
-  "Nigeria",
-  "United States",
-  "United Kingdom",
-  "Canada",
-  "South Africa",
-  "Ghana",
-  "Kenya",
-  "Other / International",
-] as const;
+export { FIRM_JURISDICTION_OPTIONS };
 
-export type FirmCountryOption = (typeof FIRM_COUNTRY_OPTIONS)[number];
-
-const ALLOWED_FIELDS = new Set(["name", "industry", "country"]);
+const ALLOWED_FIELDS = new Set(["name", "industry", "jurisdiction"]);
 const ALLOWED_UPLOAD_FIELDS = new Set(["firmSlug", "filename", "contentMarkdown"]);
 const ALLOWED_TENANT_SEARCH_FIELDS = new Set(["firmSlug", "mode"]);
 
@@ -113,14 +107,10 @@ function isFirmIndustryOption(value: string): value is FirmIndustryOption {
   return (FIRM_INDUSTRY_OPTIONS as readonly string[]).includes(value);
 }
 
-function isFirmCountryOption(value: string): value is FirmCountryOption {
-  return (FIRM_COUNTRY_OPTIONS as readonly string[]).includes(value);
-}
-
 export function parseFirmProvisioningRequest(data: unknown): {
   name: string;
   industry: FirmIndustryOption;
-  country: FirmCountryOption;
+  jurisdiction: string;
 } {
   if (data === null || typeof data !== "object" || Array.isArray(data)) {
     throw new FirmProvisioningRequestError("invalid_payload", "Request payload must be an object.");
@@ -160,9 +150,17 @@ export function parseFirmProvisioningRequest(data: unknown): {
     );
   }
 
-  if (typeof record.country !== "string" || !isFirmCountryOption(record.country)) {
+  if (typeof record.jurisdiction !== "string") {
     throw new FirmProvisioningRequestError(
-      "invalid_country",
+      "invalid_jurisdiction",
+      "Choose a supported country before creating the tenant.",
+    );
+  }
+
+  const jurisdiction = resolveFirmJurisdiction(record.jurisdiction);
+  if (!jurisdiction) {
+    throw new FirmProvisioningRequestError(
+      "invalid_jurisdiction",
       "Choose a supported country before creating the tenant.",
     );
   }
@@ -170,7 +168,7 @@ export function parseFirmProvisioningRequest(data: unknown): {
   return {
     name,
     industry: record.industry,
-    country: record.country,
+    jurisdiction,
   };
 }
 

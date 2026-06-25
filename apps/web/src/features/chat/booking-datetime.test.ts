@@ -56,6 +56,7 @@ describe("booking datetime helpers", () => {
 
   it("detects when the assistant is asking for the booking schedule", () => {
     expect(shouldShowBookingScheduleButton("What day and time would you prefer for them to reach out?")).toBe(true);
+    expect(shouldShowBookingScheduleButton("Please share a preferred date and time for contact.")).toBe(true);
     expect(shouldShowBookingScheduleButton("Thanks, we can review this internally.")).toBe(false);
   });
 

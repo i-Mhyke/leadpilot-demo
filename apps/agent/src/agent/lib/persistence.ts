@@ -25,13 +25,30 @@ export function getSessionBinding(instanceId: string): SessionBinding | undefine
   return getStore().byInstanceId.get(instanceId);
 }
 
+export function clearSessionBindingsForFirmSlug(firmSlug: string): void {
+  const prefix = `${firmSlug}/`;
+  const store = getStore();
+  for (const instanceId of [...store.byInstanceId.keys()]) {
+    if (instanceId === firmSlug || instanceId.startsWith(prefix)) {
+      store.byInstanceId.delete(instanceId);
+    }
+  }
+}
+
 export function setSessionBinding(instanceId: string, binding: SessionBinding): void {
   getStore().byInstanceId.set(instanceId, binding);
 }
 
 export async function resolveBinding(firmSlug: string, browserSessionId: string, agentInstanceId: string): Promise<SessionBinding> {
   const existing = getSessionBinding(agentInstanceId);
-  if (existing?.brainSnapshot) return existing;
+  if (existing?.brainSnapshot) {
+    const firm = await getFirmBySlug(firmSlug);
+    if ("kind" in firm) {
+      getStore().byInstanceId.delete(agentInstanceId);
+    } else {
+      return existing;
+    }
+  }
   const firm = await getFirmBySlug(firmSlug);
   if ("kind" in firm) throw new Error(firm.kind === "inactive" ? "Firm inactive." : "Unknown firm.");
   const conversation = await resolveConversationContext({

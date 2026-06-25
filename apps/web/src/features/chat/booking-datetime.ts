@@ -88,6 +88,10 @@ export function shouldShowBookingScheduleButton(message: string) {
     /choose\s+a\s+booking\s+schedule/i,
     /select\s+a\s+booking\s+schedule/i,
     /pick\s+a\s+date\s+and\s+time/i,
+    /preferred\s+date\s+and\s+time/i,
+    /preferred\s+date\s+and\s+time\s+for\s+contact/i,
+    /preferred\s+time\s+for\s+contact/i,
+    /please\s+share\s+a\s+preferred\s+date\s+and\s+time/i,
   ].some((pattern) => pattern.test(normalized));
 }
 

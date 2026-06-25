@@ -1,26 +1,36 @@
 import { defineTool } from '@flue/runtime';
 import * as v from 'valibot';
 import { searchFirmKnowledge } from "@leadpilot/firm-rag";
-import { getFirmProfileBySlug } from "@leadpilot/db";
 import { searchLegalKnowledge } from "@leadpilot/legal-rag";
-import { isNigerianFirmCountry } from "../agent/lib/country.ts";
 import { requireSessionBinding } from "../agent/lib/session-scope.ts";
 
 function r(v: unknown) { return JSON.parse(JSON.stringify(v)); }
 
-export function createSearchKnowledgeTool(firmSlug: string, browserSessionId: string) {
+export function createSearchKnowledgeTool(
+  firmSlug: string,
+  browserSessionId: string,
+  canUseNigerianLegalKnowledge: boolean,
+) {
+  const scopeValues = canUseNigerianLegalKnowledge
+    ? (["firm", "legal", "both"] as const)
+    : (["firm"] as const);
+
   return defineTool({
     name: "search_knowledge",
-    description: "Search firm and/or Nigerian legal knowledge.",
+    description: canUseNigerianLegalKnowledge
+      ? "Search firm and Nigerian legal knowledge."
+      : "Search firm knowledge only.",
     input: v.object({
       query: v.pipe(v.string(), v.minLength(3), v.maxLength(300)),
-      scope: v.picklist(["firm", "legal", "both"]),
+      scope: v.picklist(scopeValues),
       limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(8)), 6),
     }),
     async run({ input }: { input: { query: string; scope: "firm" | "legal" | "both"; limit: number } }) {
+      if (!canUseNigerianLegalKnowledge && input.scope !== "firm") {
+        throw new Error("Nigerian legal retrieval is disabled for this firm.");
+      }
+
       const binding = await requireSessionBinding(firmSlug, browserSessionId);
-      const profile = await getFirmProfileBySlug(firmSlug);
-      const canUseNigerianLegalKnowledge = !("kind" in profile) && isNigerianFirmCountry(profile.firm.jurisdiction);
       const evidence: Array<Record<string, unknown>> = [];
       if (input.scope !== "legal") {
         const firmRes = await searchFirmKnowledge({

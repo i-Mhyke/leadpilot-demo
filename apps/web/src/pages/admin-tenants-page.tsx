@@ -151,19 +151,26 @@ export function AdminTenantsPage() {
               Loading tenant workspace...
             </section>
           ) : (
-          <FirmProvisioningCard
-            mode={isAddMode ? "create" : "details"}
-            firm={pageState?.selectedFirm ?? null}
-            brainConfig={pageState?.brainConfig ?? null}
-            selectionError={pageState?.selectionError ?? null}
-            onCreated={(firm) => {
-              navigate({
-                to: "/admin/tenants",
-                search: () => ({ firmSlug: firm.slug }),
-                replace: true,
-              });
-            }}
-          />
+            <FirmProvisioningCard
+              mode={isAddMode ? "create" : "details"}
+              firm={pageState?.selectedFirm ?? null}
+              brainConfig={pageState?.brainConfig ?? null}
+              selectionError={pageState?.selectionError ?? null}
+              onCreated={(firm) => {
+                navigate({
+                  to: "/admin/tenants",
+                  search: () => ({ firmSlug: firm.slug }),
+                  replace: true,
+                });
+              }}
+              onDeleted={() => {
+                navigate({
+                  to: "/admin/tenants",
+                  search: () => ({ mode: "add" as const }),
+                  replace: true,
+                });
+              }}
+            />
           )}
         </div>
       </section>

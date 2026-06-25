@@ -62,10 +62,12 @@ describe("composeLeadPilotInstructions", () => {
 
     expect(instructions.startsWith("BASE INSTRUCTIONS")).toBe(true);
     expect(instructions).toContain("## Injected Company Context");
+    expect(instructions).toContain("## Injected Legal Policy");
     expect(instructions).toContain("## Injected Brain Context");
     expect(instructions).toContain("Company name: Northline Advisory");
     expect(instructions).toContain("Brain revision: 4");
     expect(instructions).toContain("Forbidden claims: Never promise outcomes.");
+    expect(instructions).toContain("Legal retrieval policy: Nigerian legal KB enabled for this firm.");
   });
 
   it("falls back to the generic instructions and firm profile when the brain is missing", () => {
@@ -77,11 +79,41 @@ describe("composeLeadPilotInstructions", () => {
 
     expect(instructions).toContain("BASE INSTRUCTIONS");
     expect(instructions).toContain("## Injected Company Context");
+    expect(instructions).toContain("## Injected Legal Policy");
     expect(instructions).not.toContain("## Injected Brain Context");
+  });
+
+  it("disables Nigerian legal retrieval for non-Nigerian firms", () => {
+    const instructions = composeLeadPilotInstructions({
+      baseInstructions: "BASE INSTRUCTIONS",
+      profile: {
+        ...sampleProfile,
+        firm: {
+          ...sampleProfile.firm,
+          jurisdiction: "Finland",
+        },
+      },
+      brainSnapshot: null,
+    });
+
+    expect(instructions).toContain("Legal retrieval policy: Nigerian legal KB disabled for this firm.");
+    expect(instructions).toContain('Never call `search_knowledge` with scope "legal" or "both".');
   });
 
   it("includes the booking schedule marker in the base prompt file", () => {
     const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
     expect(instructions).toContain("[[leadpilot.booking_schedule_requested]]");
+  });
+
+  it("documents the recoverable persistence failure fallback", () => {
+    const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+    expect(instructions).toContain('failureReason: "persistence_unavailable"');
+    expect(instructions).toContain("keep the conversation moving with the next useful question");
+  });
+
+  it("tells the agent to still capture out-of-scope matters", () => {
+    const instructions = readFileSync(new URL("../instructions.md", import.meta.url), "utf8");
+    expect(instructions).toContain("still capture the visitor's contact details");
+    expect(instructions).toContain("Do not say it is a strong fit when it is not");
   });
 });

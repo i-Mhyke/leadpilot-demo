@@ -14,14 +14,20 @@ export default defineConfig(({ mode }) => {
   // Assign monorepo env synchronously so SSR/server functions see DATABASE_URL, etc.
   Object.assign(process.env, env);
   const agentTarget = resolveAgentBaseUrl(env);
+  const agentProxyOptions = { target: agentTarget, changeOrigin: true };
+  const agentNitroDevProxy = {
+    "/agents/**": agentProxyOptions,
+    "/api/**": agentProxyOptions,
+  };
 
   return {
     envDir: rootDir,
     server: {
       port: 3000,
+      // Vite prefix-matches `/agents` → `/agents/...` when Nitro is not handling the request.
       proxy: {
-        "/agents": { target: agentTarget, changeOrigin: true },
-        "/api": { target: agentTarget, changeOrigin: true },
+        "/agents": agentProxyOptions,
+        "/api": agentProxyOptions,
       },
     },
     resolve: {
@@ -31,7 +37,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       tanstackStart(),
-      nitro(),
+      nitro({ devProxy: agentNitroDevProxy }),
       viteReact(),
       tailwindcss(),
     ],

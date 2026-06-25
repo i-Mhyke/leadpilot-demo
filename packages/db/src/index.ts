@@ -39,6 +39,7 @@ export const tables = {
 export { getSql, setSqlForTests } from "./client.ts";
 export {
   createFirm,
+  deleteFirmBySlug,
   getFirmBySlug,
   getFirmProfile,
   getFirmProfileBySlug,

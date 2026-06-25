@@ -3,6 +3,8 @@ import * as v from 'valibot';
 import { upsertLeadProfile, getFirmBookingPolicy } from "@leadpilot/db";
 import { calculateLeadScore, classifyLeadTemperature, normalizeLeadScoreFactors } from "@leadpilot/domain";
 import { resolveLeadQualification, shouldPersistLead } from "../agent/lib/lead-qualification.ts";
+import { classifyRecoverablePersistenceError, persistenceFailureMessage } from "../agent/lib/persistence-errors.ts";
+import { logLeadPilotEvent } from "../agent/lib/observability.ts";
 import { requireSessionBinding } from "../agent/lib/session-scope.ts";
 import { resolveConversationWriteIds, resolveScopedServiceId } from "../agent/lib/resource-scope.ts";
 import { deriveWriteIdempotencyKey } from "../agent/lib/write-idempotency.ts";
@@ -35,40 +37,60 @@ export function createUpsertLeadTool(firmSlug: string, browserSessionId: string)
       highUrgency: v.optional(v.boolean()),
     }),
     async run({ input }: { input: Record<string, unknown> }) {
-      const binding = await requireSessionBinding(firmSlug, browserSessionId);
-      const ws = await resolveConversationWriteIds(binding.firmId, binding.conversationId);
-      const psu = await resolveScopedServiceId(binding.firmId, input.primaryServiceId as string);
-      const factors = normalizeLeadScoreFactors(input.scoreFactors as Record<string, number>);
-      const score = calculateLeadScore(factors);
-      const temp = classifyLeadTemperature(score);
-      const bp = await getFirmBookingPolicy(binding.firmId);
-      const qual = resolveLeadQualification({
-        scoreFactors: factors,
-        contactCaptureThreshold: bp.contactCaptureThreshold,
-        bookingOfferThreshold: bp.bookingOfferThreshold,
-        explicitHelpIntent: input.explicitHelpIntent as boolean | undefined,
-        highUrgency: input.highUrgency as boolean | undefined,
-      });
-      if (!shouldPersistLead(qual.nextAction)) {
-        return r({ score, temperature: temp, nextAction: qual.nextAction, persisted: false });
+      let nextAction: "offer_booking" | "ask_for_contact" | "continue_qualification" = "continue_qualification";
+      try {
+        const binding = await requireSessionBinding(firmSlug, browserSessionId);
+        const ws = await resolveConversationWriteIds(binding.firmId, binding.conversationId);
+        const psu = await resolveScopedServiceId(binding.firmId, input.primaryServiceId as string);
+        const factors = normalizeLeadScoreFactors(input.scoreFactors as Record<string, number>);
+        const score = calculateLeadScore(factors);
+        const temp = classifyLeadTemperature(score);
+        const bp = await getFirmBookingPolicy(binding.firmId);
+        const qual = resolveLeadQualification({
+          scoreFactors: factors,
+          contactCaptureThreshold: bp.contactCaptureThreshold,
+          bookingOfferThreshold: bp.bookingOfferThreshold,
+          explicitHelpIntent: input.explicitHelpIntent as boolean | undefined,
+          highUrgency: input.highUrgency as boolean | undefined,
+        });
+        nextAction = qual.nextAction;
+        if (!shouldPersistLead(qual.nextAction)) {
+          return r({ score, temperature: temp, nextAction: qual.nextAction, persisted: false });
+        }
+        const i = input as Record<string, string | undefined>;
+        const key = deriveWriteIdempotencyKey({
+          firmId: binding.firmId, conversationId: binding.conversationId,
+          toolName: "upsert_lead",
+          canonicalInput: JSON.stringify({ summary: i.summary, score, temperature: temp }),
+        });
+        const lead = await upsertLeadProfile({
+          firmId: binding.firmId, conversationId: binding.conversationId,
+          visitorId: ws.visitorId, name: i.name, email: i.email, phone: i.phone,
+          companyName: i.companyName, summary: i.summary || "", primaryServiceId: psu,
+          score, temperature: temp, scoreFactors: factors, reason: i.reason || "",
+          idempotencyKey: key,
+        });
+        return r({
+          leadId: lead.id, score, temperature: temp, status: lead.status,
+          nextAction: qual.nextAction, persisted: true,
+        });
+      } catch (error) {
+        const failureReason = classifyRecoverablePersistenceError(error);
+        if (!failureReason) throw error;
+        logLeadPilotEvent("tool.persistenceFailure", {
+          toolName: "upsert_lead",
+          firmSlug,
+          browserSessionId,
+          failureReason,
+        }, "warn");
+        return r({
+          persisted: false,
+          status: "failed",
+          failureReason: "persistence_unavailable",
+          errorMessage: persistenceFailureMessage("Lead"),
+          nextAction,
+        });
       }
-      const i = input as Record<string, string | undefined>;
-      const key = deriveWriteIdempotencyKey({
-        firmId: binding.firmId, conversationId: binding.conversationId,
-        toolName: "upsert_lead",
-        canonicalInput: JSON.stringify({ summary: i.summary, score, temperature: temp }),
-      });
-      const lead = await upsertLeadProfile({
-        firmId: binding.firmId, conversationId: binding.conversationId,
-        visitorId: ws.visitorId, name: i.name, email: i.email, phone: i.phone,
-        companyName: i.companyName, summary: i.summary || "", primaryServiceId: psu,
-        score, temperature: temp, scoreFactors: factors, reason: i.reason || "",
-        idempotencyKey: key,
-      });
-      return r({
-        leadId: lead.id, score, temperature: temp, status: lead.status,
-        nextAction: qual.nextAction, persisted: true,
-      });
     },
   });
 }

@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { AdminTenantsPage } from "../pages/admin-tenants-page";
 
 const serverFns = vi.hoisted(() => ({
   createFirm: vi.fn() as Mock,
+  deleteFirm: vi.fn() as Mock,
   loadPage: vi.fn() as Mock,
   uploadKnowledge: vi.fn() as Mock,
   uploadBrain: vi.fn() as Mock,
@@ -18,6 +20,7 @@ const routeState = vi.hoisted(() => ({
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: (fn: unknown) => {
     if (fn === "createFirmProvisioning") return serverFns.createFirm;
+    if (fn === "deleteFirmProvisioning") return serverFns.deleteFirm;
     if (fn === "loadFirmProvisioningPageState") return serverFns.loadPage;
     if (fn === "uploadFirmKnowledgeProvisioning") return serverFns.uploadKnowledge;
     if (fn === "saveFirmBrainProvisioning") return serverFns.uploadBrain;
@@ -73,14 +76,20 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("../features/firms/server", () => ({
   createFirmProvisioning: "createFirmProvisioning",
+  deleteFirmProvisioning: "deleteFirmProvisioning",
   loadFirmProvisioningPageState: "loadFirmProvisioningPageState",
   saveFirmBrainProvisioning: "saveFirmBrainProvisioning",
   uploadFirmKnowledgeProvisioning: "uploadFirmKnowledgeProvisioning",
 }));
 
 describe("AdminTenantsPage", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     serverFns.createFirm.mockReset();
+    serverFns.deleteFirm.mockReset();
     serverFns.loadPage.mockReset();
     serverFns.uploadKnowledge.mockReset();
     serverFns.uploadBrain.mockReset();
@@ -178,10 +187,58 @@ describe("AdminTenantsPage", () => {
 
     expect(await screen.findByRole("heading", { name: /live brain readout/i })).toBeInTheDocument();
     expect(screen.getByText(/northline advisory is a consulting firm/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete firm/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open dashboard/i })).toHaveAttribute(
       "href",
       "/dashboard/northline-advisory",
     );
     expect(screen.getByRole("link", { name: /add/i })).toHaveAttribute("href", "/admin/tenants?mode=add");
+  });
+
+  it("deletes the selected firm and returns to add mode", async () => {
+    const user = userEvent.setup();
+    routeState.search = { firmSlug: "northline-advisory" };
+    serverFns.loadPage.mockResolvedValue({
+      firms: [
+        {
+          id: "firm-2",
+          name: "Northline Advisory",
+          slug: "northline-advisory",
+          industry: "consulting",
+          jurisdiction: "United Kingdom",
+          status: "active",
+        },
+      ],
+      selectedFirm: {
+        id: "firm-2",
+        name: "Northline Advisory",
+        slug: "northline-advisory",
+        industry: "consulting",
+        jurisdiction: "United Kingdom",
+        status: "active",
+      },
+      brainConfig: null,
+      selectionError: null,
+    });
+    serverFns.deleteFirm.mockResolvedValue({ slug: "northline-advisory" });
+
+    render(<AdminTenantsPage />);
+
+    const deleteButton = await screen.findByRole("button", { name: /delete firm/i });
+    expect(deleteButton).toBeDisabled();
+    await user.type(screen.getByRole("textbox"), "northline-advisory");
+    expect(deleteButton).toBeEnabled();
+    await user.click(deleteButton);
+
+    await waitFor(() => {
+      expect(serverFns.deleteFirm).toHaveBeenCalledWith({
+        data: { firmSlug: "northline-advisory" },
+      });
+    });
+    expect(routeState.navigate).toHaveBeenCalledWith({
+      to: "/admin/tenants",
+      search: expect.any(Function),
+      replace: true,
+    });
   });
 });

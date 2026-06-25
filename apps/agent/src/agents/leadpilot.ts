@@ -2,6 +2,7 @@ import { defineAgent, type AgentRouteHandler } from '@flue/runtime';
 import type { FirmAgentProfile, FirmBrainSnapshot } from "@leadpilot/shared";
 import { getFirmProfileBySlug } from "@leadpilot/db";
 import { resolveModelSpecifier, resolveThinkingLevel } from "../agent/lib/model.ts";
+import { isNigerianFirmCountry } from "../agent/lib/country.ts";
 import { parseClientContextHeader } from "../agent/lib/client-context.ts";
 import { resolveBinding, getSessionBinding } from "../agent/lib/persistence.ts";
 import { logLeadPilotEvent } from "../agent/lib/observability.ts";
@@ -57,6 +58,7 @@ export default defineAgent(async ({ id }) => {
     profile,
     brainSnapshot,
   });
+  const canUseNigerianLegalKnowledge = profile ? isNigerianFirmCountry(profile.firm.jurisdiction) : false;
 
   return {
     model: resolveModelSpecifier(),
@@ -65,7 +67,7 @@ export default defineAgent(async ({ id }) => {
     tools: [
       createUpsertLeadTool(firmSlug, browserSessionId),
       createBookingRequestTool(firmSlug, browserSessionId),
-      createSearchKnowledgeTool(firmSlug, browserSessionId),
+      createSearchKnowledgeTool(firmSlug, browserSessionId, canUseNigerianLegalKnowledge),
       createGetFirmProfileTool(firmSlug),
       createEvaluateConversationReadinessTool(firmSlug, browserSessionId),
       createHandoffToHumanTool(firmSlug, browserSessionId),

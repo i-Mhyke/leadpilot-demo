@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
   createFirm,
+  deleteFirmBySlug,
   getFirmBrainConfigByFirmId,
   getFirmBySlug,
   listActiveFirms,
@@ -8,6 +9,7 @@ import {
 } from "@leadpilot/db";
 import { ingestUploadedFirmKnowledgeMarkdown, type FirmKnowledgeUploadResult } from "@leadpilot/firm-rag";
 import type { Firm, FirmBrainConfig } from "@leadpilot/shared";
+import { assertAdminProvisioningEnabled } from "./admin-provisioning-access";
 import {
   parseFirmBrainUploadRequest,
   parseFirmKnowledgeUploadRequest,
@@ -26,10 +28,11 @@ export type FirmProvisioningPageState = {
 export const createFirmProvisioning = createServerFn({ method: "POST" })
   .validator((data: unknown) => parseFirmProvisioningRequest(data))
   .handler(async ({ data }): Promise<Firm> => {
+    assertAdminProvisioningEnabled();
     return createFirm({
       name: data.name,
       industry: data.industry,
-      jurisdiction: data.country,
+      jurisdiction: data.jurisdiction,
     });
   });
 
@@ -82,6 +85,7 @@ export const loadFirmProvisioningPageState = createServerFn({ method: "GET" })
 export const saveFirmBrainProvisioning = createServerFn({ method: "POST" })
   .validator((data: unknown) => parseFirmBrainUploadRequest(data))
   .handler(async ({ data }): Promise<FirmBrainConfig> => {
+    assertAdminProvisioningEnabled();
     const firm = await getFirmBySlug(data.firmSlug);
     if ("kind" in firm) {
       throw new Error(firm.kind === "inactive" ? "Firm inactive." : "Unknown firm.");
@@ -93,9 +97,21 @@ export const saveFirmBrainProvisioning = createServerFn({ method: "POST" })
     });
   });
 
+export const deleteFirmProvisioning = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parseFirmSlugRequest(data))
+  .handler(async ({ data }): Promise<{ slug: string }> => {
+    assertAdminProvisioningEnabled();
+    const firm = await deleteFirmBySlug(data.firmSlug);
+    if ("kind" in firm) {
+      throw new Error("Unknown firm.");
+    }
+    return { slug: firm.slug };
+  });
+
 export const uploadFirmKnowledgeProvisioning = createServerFn({ method: "POST" })
   .validator((data: unknown) => parseFirmKnowledgeUploadRequest(data))
   .handler(async ({ data }): Promise<FirmKnowledgeUploadResult> => {
+    assertAdminProvisioningEnabled();
     const firm = await getFirmBySlug(data.firmSlug);
     if ("kind" in firm) {
       throw new Error(firm.kind === "inactive" ? "Firm inactive." : "Unknown firm.");

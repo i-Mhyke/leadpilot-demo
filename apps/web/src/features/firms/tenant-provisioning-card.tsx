@@ -12,7 +12,8 @@ import {
   saveFirmBrainProvisioning,
   uploadFirmKnowledgeProvisioning,
 } from "./server";
-import { FIRM_COUNTRY_OPTIONS, FIRM_INDUSTRY_OPTIONS } from "./validators";
+import { FirmDeleteSection } from "./firm-delete-section";
+import { FIRM_INDUSTRY_OPTIONS, FIRM_JURISDICTION_OPTIONS } from "./validators";
 
 const INDUSTRY_LABELS: Record<(typeof FIRM_INDUSTRY_OPTIONS)[number], string> = {
   legal: "Legal",
@@ -226,7 +227,7 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
     const formData = new FormData(form);
     const name = String(formData.get("name") ?? "");
     const industry = String(formData.get("industry") ?? "");
-    const country = String(formData.get("country") ?? "");
+    const jurisdiction = String(formData.get("jurisdiction") ?? "");
 
     setIsSubmitting(true);
     setStatusMessage(null);
@@ -236,7 +237,7 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
         data: {
           name,
           industry,
-          country,
+          jurisdiction,
         },
       });
       props.onCreated?.(firm);
@@ -306,12 +307,12 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="firm-country" className="text-foreground text-sm font-medium">
+          <label htmlFor="firm-jurisdiction" className="text-foreground text-sm font-medium">
             Country
           </label>
           <select
-            id="firm-country"
-            name="country"
+            id="firm-jurisdiction"
+            name="jurisdiction"
             defaultValue=""
             required
             disabled={isSubmitting}
@@ -320,9 +321,9 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
             <option value="" disabled>
               Select a country
             </option>
-            {FIRM_COUNTRY_OPTIONS.map((country) => (
-              <option key={country} value={country}>
-                {country}
+            {FIRM_JURISDICTION_OPTIONS.map((jurisdiction) => (
+              <option key={jurisdiction.code} value={jurisdiction.code}>
+                {jurisdiction.name}
               </option>
             ))}
           </select>
@@ -362,6 +363,7 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
 function FirmWorkspaceCard(props: {
   firm: Firm;
   brainConfig: FirmBrainConfig | null;
+  onDeleted?: () => void;
 }) {
   const [brainConfig, setBrainConfig] = useState<FirmBrainConfig | null>(props.brainConfig);
 
@@ -422,6 +424,7 @@ function FirmWorkspaceCard(props: {
       </div>
 
       <BrainReadoutCard brainConfig={brainConfig} />
+      <FirmDeleteSection firm={props.firm} onDeleted={props.onDeleted} />
     </section>
   );
 }
@@ -455,6 +458,7 @@ export function FirmProvisioningCard(props: {
   brainConfig?: FirmBrainConfig | null;
   selectionError?: string | null;
   onCreated?: (firm: Firm) => void;
+  onDeleted?: () => void;
 } = {}) {
   const [createdFirm, setCreatedFirm] = useState<Firm | null>(null);
   const mode = props.mode ?? "create";
@@ -465,11 +469,11 @@ export function FirmProvisioningCard(props: {
       return <FirmSelectionEmptyState selectionError={props.selectionError ?? null} />;
     }
 
-    return <FirmWorkspaceCard firm={firm} brainConfig={props.brainConfig ?? null} />;
+    return <FirmWorkspaceCard firm={firm} brainConfig={props.brainConfig ?? null} onDeleted={props.onDeleted} />;
   }
 
   if (firm) {
-    return <FirmWorkspaceCard firm={firm} brainConfig={null} />;
+    return <FirmWorkspaceCard firm={firm} brainConfig={null} onDeleted={props.onDeleted} />;
   }
 
   return (
