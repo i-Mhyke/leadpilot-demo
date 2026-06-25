@@ -13,14 +13,21 @@ import { resolveClientContextForRequest, type ClientContext } from "./client-con
 import { isAllowedChatOrigin } from "./cors.ts";
 
 export class ChatRequestGuardrailError extends Error {
+  public readonly code: string;
+  public readonly status: 400 | 403 | 429 | 500;
+  public readonly retryAfterSeconds?: number;
+
   constructor(
-    public readonly code: string,
+    code: string,
     message: string,
-    public readonly status: 400 | 403 | 429 | 500,
-    public readonly retryAfterSeconds?: number,
+    status: 400 | 403 | 429 | 500,
+    retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "ChatRequestGuardrailError";
+    this.code = code;
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 

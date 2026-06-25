@@ -2,16 +2,27 @@ import { getSql } from "./client.ts";
 import { rows as toRows } from "./sql.ts";
 
 export class RateLimitExceededError extends Error {
+  public readonly scope: string;
+  public readonly rateKey: string;
+  public readonly limit: number;
+  public readonly windowMs: number;
+  public readonly retryAfterSeconds: number;
+
   constructor(
     message: string,
-    public readonly scope: string,
-    public readonly rateKey: string,
-    public readonly limit: number,
-    public readonly windowMs: number,
-    public readonly retryAfterSeconds: number,
+    scope: string,
+    rateKey: string,
+    limit: number,
+    windowMs: number,
+    retryAfterSeconds: number,
   ) {
     super(message);
     this.name = "RateLimitExceededError";
+    this.scope = scope;
+    this.rateKey = rateKey;
+    this.limit = limit;
+    this.windowMs = windowMs;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
