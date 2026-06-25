@@ -6,7 +6,7 @@ type EnvVars = {
   NODE_ENV?: string;
 };
 
-function allowedOrigins(env: EnvVars = process.env): string[] | null {
+export function getAllowedChatOrigins(env: EnvVars = process.env): string[] | null {
   const raw = env.LEADPILOT_ALLOWED_ORIGINS?.trim();
   if (!raw) return null;
   return raw.split(",").map((value) => value.trim()).filter(Boolean);
@@ -16,7 +16,7 @@ export function isAllowedChatOrigin(request: Request, env: EnvVars = process.env
   const origin = request.headers.get("Origin");
   if (!origin) return env.NODE_ENV !== "production";
 
-  const allowlist = allowedOrigins(env);
+  const allowlist = getAllowedChatOrigins(env);
   if (allowlist) return allowlist.includes(origin);
 
   if (env.LEADPILOT_PUBLIC_CHAT === "true") return true;
@@ -28,7 +28,7 @@ export function resolveCorsAllowedOrigin(request: Request, env: EnvVars = proces
   const origin = request.headers.get("Origin");
   if (!origin) return env.NODE_ENV !== "production" ? "*" : null;
 
-  const allowlist = allowedOrigins(env);
+  const allowlist = getAllowedChatOrigins(env);
   if (allowlist) {
     return allowlist.includes(origin) ? origin : null;
   }

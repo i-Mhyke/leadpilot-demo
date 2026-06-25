@@ -15,7 +15,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "db:migrate": "tsx packages/db/scripts/migrate.ts",
-    "db:seed:demo-law": "tsx packages/db/scripts/seed-demo-law.ts"
+    "db:seed:demo-law": "tsx packages/db/scripts/seed-demo-law.ts",
+    "db:seed:demo-firms": "tsx --env-file=.env scripts/import-demo-firms.ts"
   },
   "devDependencies": {
     "@flue/cli": "^1.0.0-beta.3",

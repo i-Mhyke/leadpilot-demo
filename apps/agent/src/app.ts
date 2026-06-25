@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { registerObservability } from "./instrumentation.ts";
 import {
   corsPreflightResponse,
+  getAllowedChatOrigins,
   isAllowedChatOrigin,
   LEADPILOT_CORS_HEADERS,
   resolveCorsAllowedOrigin,
@@ -17,6 +18,11 @@ import {
 import { logLeadPilotEvent } from "./agent/lib/observability.ts";
 
 registerObservability();
+logLeadPilotEvent("agent.cors.config", {
+  allowedOrigins: getAllowedChatOrigins() ?? [],
+  publicChat: process.env.LEADPILOT_PUBLIC_CHAT === "true",
+  nodeEnv: process.env.NODE_ENV ?? "",
+});
 
 const app = new Hono();
 
