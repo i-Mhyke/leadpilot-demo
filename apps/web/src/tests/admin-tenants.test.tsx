@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import { AdminTenantsPage } from "../routes/admin.tenants";
+import { AdminTenantsPage } from "../pages/admin-tenants-page";
 
 const serverFns = vi.hoisted(() => ({
   createFirm: vi.fn() as Mock,
@@ -26,7 +26,8 @@ vi.mock("@tanstack/react-start", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => () => ({}),
+  getRouteApi: () => ({
     useNavigate: () => routeState.navigate,
     useSearch: () => routeState.search,
   }),

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Home } from "../routes/index";
+import { Home } from "../pages/home";
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => () => ({}),
