@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { ConversationMetadata } from "@leadpilot/shared";
 import {
   appendConversationEvent,
   clearConversationCursorByBrowserSession,
@@ -11,6 +12,7 @@ import {
   updateConversationCursorByBrowserSession,
 } from "@leadpilot/db";
 import type { ChatHistoryResult } from "@leadpilot/shared";
+import { shouldShowBookingScheduleButton } from "./booking-datetime";
 import {
   parseBookingSelectionRequest,
   parseChatHistoryRequest,
@@ -85,7 +87,7 @@ export const persistConversationTurn = createServerFn({ method: "POST" })
       firmId: firm.id,
       content: data.assistantMessage,
       eveTurnId: assistantTurnId,
-      metadata: data.assistantMetadata,
+      metadata: normalizeAssistantMetadata(data.assistantMessage, data.assistantMetadata),
     });
     return { conversationId: conversation.id };
   });
@@ -115,3 +117,24 @@ export const persistBookingSelection = createServerFn({ method: "POST" })
 
     return { conversationId: conversation.id };
   });
+
+function normalizeAssistantMetadata(
+  assistantMessage: string,
+  metadata?: ConversationMetadata,
+): ConversationMetadata | undefined {
+  const bookingScheduleRequested =
+    Boolean(metadata?.ui?.bookingScheduleRequested) ||
+    shouldShowBookingScheduleButton(assistantMessage);
+
+  if (!bookingScheduleRequested) {
+    return metadata;
+  }
+
+  return {
+    ...(metadata ?? {}),
+    ui: {
+      ...(metadata?.ui ?? {}),
+      bookingScheduleRequested: true,
+    },
+  };
+}

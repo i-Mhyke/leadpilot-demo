@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Button } from "@/components/ui/button";
 import { ClickableTableRow } from "@/features/dashboard/components/clickable-table-row";
 import {
   FirmProvisioningCard,
@@ -11,6 +12,14 @@ import {
   type FirmProvisioningPageState,
 } from "@/features/firms/server";
 import { FIRM_INDUSTRY_OPTIONS, FIRM_JURISDICTION_OPTIONS } from "@/features/firms/validators";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 const adminTenantsRoute = getRouteApi("/admin/tenants");
 
@@ -93,7 +102,7 @@ function AdminDirectoryTable(props: {
   const hasFilters = Boolean(props.search.country || props.search.sector);
 
   return (
-    <section className="border-border/70 bg-card rounded-[28px] border p-4 shadow-[0_16px_40px_rgba(18,34,42,0.06)] sm:p-5">
+    <section className="border-border/70 bg-card w-full rounded-[28px] border p-4 shadow-[0_16px_40px_rgba(18,34,42,0.06)] sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-foreground text-sm font-semibold tracking-tight">Firm directory</p>
@@ -258,22 +267,6 @@ function AdminDirectoryTable(props: {
   );
 }
 
-function AdminSidebar(props: {
-  firms: AdminDirectoryRow[];
-  activeSlug: string | null;
-  search: AdminTenantsSearch;
-  onSearchPatch: (patch: Partial<AdminTenantsSearch>) => void;
-}) {
-  return (
-    <AdminDirectoryTable
-      directory={props.firms}
-      activeSlug={props.activeSlug}
-      search={props.search}
-      onSearchPatch={props.onSearchPatch}
-    />
-  );
-}
-
 export function AdminTenantsPage() {
   const search = adminTenantsRoute.useSearch();
   const navigate = adminTenantsRoute.useNavigate();
@@ -310,6 +303,7 @@ export function AdminTenantsPage() {
   const updateSearch = createSearchUpdater(navigate, search);
   const selectedDirectoryEntry =
     pageState?.directory.find((entry) => entry.firm.slug === search.firmSlug) ?? null;
+  const isDrawerOpen = isAddMode || Boolean(search.firmSlug);
   const selectedFirmStats: FirmAdminStats | null = selectedDirectoryEntry
     ? {
         conversationsTotal: selectedDirectoryEntry.conversationsTotal,
@@ -346,62 +340,98 @@ export function AdminTenantsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
-        <div className="space-y-4">
-          {loadError ? (
-            <section className="border-border/60 bg-card rounded-[28px] border p-5 text-sm text-destructive">
-              {loadError}
-            </section>
-          ) : null}
+      <section className="w-full space-y-4">
+        {loadError ? (
+          <section className="border-border/60 bg-card rounded-[28px] border p-5 text-sm text-destructive">
+            {loadError}
+          </section>
+        ) : null}
 
-          {isLoading && !pageState ? (
-            <section className="border-border/60 bg-card rounded-[28px] border p-5 text-sm text-muted-foreground">
-              Loading tenant workspace...
-            </section>
-          ) : (
-            <AdminSidebar
-              firms={pageState?.directory ?? []}
-              activeSlug={search.firmSlug ?? null}
-              search={search}
-              onSearchPatch={updateSearch}
-            />
-          )}
-        </div>
-
-        <div className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          {isLoading && !pageState ? null : (
-            <FirmProvisioningCard
-              mode={isAddMode ? "create" : "details"}
-              firm={pageState?.selectedFirm ?? null}
-              brainConfig={pageState?.brainConfig ?? null}
-              stats={selectedFirmStats}
-              selectionError={pageState?.selectionError ?? null}
-              onCreated={(firm) => {
-                navigate({
-                  to: "/admin/tenants",
-                  search: () => ({
-                    firmSlug: firm.slug,
-                    country: search.country,
-                    sector: search.sector,
-                  }),
-                  replace: true,
-                });
-              }}
-              onDeleted={() => {
-                navigate({
-                  to: "/admin/tenants",
-                  search: () => ({
-                    mode: "add" as const,
-                    country: search.country,
-                    sector: search.sector,
-                  }),
-                  replace: true,
-                });
-              }}
-            />
-          )}
-        </div>
+        {isLoading && !pageState ? (
+          <section className="border-border/60 bg-card rounded-[28px] border p-5 text-sm text-muted-foreground">
+            Loading tenant workspace...
+          </section>
+        ) : (
+          <AdminDirectoryTable
+            directory={pageState?.directory ?? []}
+            activeSlug={search.firmSlug ?? null}
+            search={search}
+            onSearchPatch={updateSearch}
+          />
+        )}
       </section>
+
+      <Drawer
+        open={isDrawerOpen}
+        onOpenChange={(open) => {
+          if (open) return;
+          navigate({
+            to: "/admin/tenants",
+            search: () => ({
+              country: search.country,
+              sector: search.sector,
+            }),
+            replace: true,
+          });
+        }}
+        direction="right"
+      >
+        <DrawerContent>
+          <DrawerHeader>
+            <div className="flex items-start justify-between gap-4 px-0">
+              <div className="min-w-0">
+                <DrawerTitle>
+                  {isAddMode ? "Provision a tenant" : selectedDirectoryEntry?.firm.name ?? "Firm details"}
+                </DrawerTitle>
+                <DrawerDescription>
+                  {isAddMode
+                    ? "Create a firm, then upload its knowledge base and brain inside the drawer."
+                    : "Inspect the firm and update its knowledge base, brain, or delete it from one place."}
+                </DrawerDescription>
+              </div>
+              <DrawerClose asChild>
+                <Button type="button" variant="ghost" className="rounded-full px-3">
+                  Close
+                </Button>
+              </DrawerClose>
+            </div>
+          </DrawerHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
+            {isLoading && !pageState ? null : (
+              <FirmProvisioningCard
+                mode={isAddMode ? "create" : "details"}
+                firm={pageState?.selectedFirm ?? null}
+                brainConfig={pageState?.brainConfig ?? null}
+                stats={selectedFirmStats}
+                selectionError={pageState?.selectionError ?? null}
+                onCreated={(firm) => {
+                  navigate({
+                    to: "/admin/tenants",
+                    search: () => ({
+                      firmSlug: firm.slug,
+                      country: search.country,
+                      sector: search.sector,
+                    }),
+                    replace: true,
+                  });
+                }}
+                onDeleted={() => {
+                  navigate({
+                    to: "/admin/tenants",
+                    search: () => ({
+                      mode: "add" as const,
+                      country: search.country,
+                      sector: search.sector,
+                    }),
+                    replace: true,
+                  });
+                }}
+              />
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </main>
   );
 }
