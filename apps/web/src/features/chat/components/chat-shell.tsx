@@ -14,10 +14,26 @@ import { ChatThread } from "./chat-thread";
 function DashboardLink({
   firmSlug,
   className,
+  prominent = false,
 }: {
   firmSlug: string;
   className?: string;
+  prominent?: boolean;
 }) {
+  if (prominent) {
+    return (
+      <Button
+        asChild
+        className={cn("w-full rounded-full px-4", CHAT_MOTION, "active:scale-[0.98]", className)}
+      >
+        <Link to="/dashboard/$firmSlug" params={{ firmSlug }}>
+          Open firm dashboard
+          <ArrowSquareOut className="size-4" aria-hidden />
+        </Link>
+      </Button>
+    );
+  }
+
   return (
     <Link
       to="/dashboard/$firmSlug"
@@ -35,17 +51,27 @@ function DashboardLink({
   );
 }
 
-function MobileDashboardButton({ firmSlug }: { firmSlug: string }) {
+function DashboardButton({
+  firmSlug,
+  className,
+  size = "default",
+  variant = "default",
+}: {
+  firmSlug: string;
+  className?: string;
+  size?: "default" | "sm";
+  variant?: "default" | "secondary";
+}) {
   return (
     <Button
       asChild
-      size="sm"
-      variant="secondary"
-      className={cn("shrink-0 rounded-full px-3.5", CHAT_MOTION, "active:scale-[0.98]")}
+      size={size}
+      variant={variant}
+      className={cn("shrink-0 rounded-full px-5", CHAT_MOTION, "active:scale-[0.98]", className)}
     >
       <Link to="/dashboard/$firmSlug" params={{ firmSlug }}>
         Dashboard
-        <ArrowSquareOut className="size-3.5" aria-hidden />
+        <ArrowSquareOut className="size-4" aria-hidden />
       </Link>
     </Button>
   );
@@ -63,9 +89,23 @@ function MobileChatHeader({ firmName, firmSlug }: { firmName: string; firmSlug: 
     <div className="border-border/50 shrink-0 border-b bg-[#fbfbfc] px-4 py-3 md:hidden">
       <div className="flex items-center justify-between gap-3">
         <p className="text-foreground min-w-0 truncate text-sm font-semibold tracking-tight">{firmName}</p>
-        <MobileDashboardButton firmSlug={firmSlug} />
+        <DashboardButton firmSlug={firmSlug} size="sm" variant="secondary" className="px-3.5" />
       </div>
       <DashboardCaptureNote className="mt-2" />
+    </div>
+  );
+}
+
+function DesktopChatHeader({ firmName, firmSlug }: { firmName: string; firmSlug: string }) {
+  return (
+    <div className="border-border/50 hidden shrink-0 border-b bg-[#fbfbfc] md:block">
+      <div className="flex items-center justify-between gap-4 px-7 py-4">
+        <div className="min-w-0">
+          <p className="text-foreground truncate text-sm font-semibold tracking-tight">{firmName}</p>
+          <DashboardCaptureNote className="mt-1.5" />
+        </div>
+        <DashboardButton firmSlug={firmSlug} />
+      </div>
     </div>
   );
 }
@@ -98,6 +138,11 @@ function SessionSidebar({
             <p className="text-muted-foreground truncate text-xs">{firmName}</p>
           </div>
         </div>
+      </div>
+
+      <div className="px-4 pb-4">
+        <DashboardCaptureNote className="mb-2.5" />
+        <DashboardLink firmSlug={firmSlug} prominent />
       </div>
 
       <div className="flex items-center justify-between gap-2 px-3 pb-2">
@@ -183,10 +228,8 @@ function SessionSidebar({
         </div>
       </nav>
 
-      <div className="mt-auto space-y-2 border-t border-border/50 p-3">
+      <div className="mt-auto border-t border-border/50 p-3">
         <p className="text-muted-foreground px-1 text-[11px]">{CHAT_COPY.sidebarFootnote}</p>
-        <DashboardCaptureNote className="px-1" />
-        <DashboardLink firmSlug={firmSlug} className="w-full" />
       </div>
     </aside>
   );
@@ -267,6 +310,7 @@ export function ChatShell({
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:pl-4">
           <div className="border-border/50 bg-card flex h-full min-h-0 flex-col overflow-hidden rounded-none border-0 md:rounded-2xl md:border md:shadow-[0_20px_40px_-24px_rgba(28,35,41,0.18)]">
             <MobileChatHeader firmName={displayFirmName} firmSlug={firmSlug} />
+            <DesktopChatHeader firmName={displayFirmName} firmSlug={firmSlug} />
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {activeSession ? (
