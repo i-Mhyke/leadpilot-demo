@@ -4,7 +4,7 @@ import {
   deleteFirmBySlug,
   getFirmBrainConfigByFirmId,
   getFirmBySlug,
-  listActiveFirms,
+  listFirmAdminDirectory,
   saveFirmBrainConfig,
 } from "@leadpilot/db";
 import { ingestUploadedFirmKnowledgeMarkdown, type FirmKnowledgeUploadResult } from "@leadpilot/firm-rag";
@@ -20,6 +20,13 @@ import {
 
 export type FirmProvisioningPageState = {
   firms: Firm[];
+  directory: Array<{
+    firm: Firm;
+    conversationsTotal: number;
+    askPageVisits: number;
+    dashboardPageVisits: number;
+    lastVisitAt?: string;
+  }>;
   selectedFirm: Firm | null;
   brainConfig: FirmBrainConfig | null;
   selectionError: string | null;
@@ -50,10 +57,12 @@ export const loadFirmProvisioningState = createServerFn({ method: "GET" })
 export const loadFirmProvisioningPageState = createServerFn({ method: "GET" })
   .validator((data: unknown) => parseFirmProvisioningSearchRequest(data))
   .handler(async ({ data }): Promise<FirmProvisioningPageState> => {
-    const firms = await listActiveFirms();
+    const directory = await listFirmAdminDirectory();
+    const firms = directory.map((entry) => entry.firm);
     if (data.mode === "add" || !data.firmSlug) {
       return {
         firms,
+        directory,
         selectedFirm: null,
         brainConfig: null,
         selectionError: null,
@@ -64,6 +73,7 @@ export const loadFirmProvisioningPageState = createServerFn({ method: "GET" })
     if ("kind" in firm) {
       return {
         firms,
+        directory,
         selectedFirm: null,
         brainConfig: null,
         selectionError:
@@ -76,6 +86,7 @@ export const loadFirmProvisioningPageState = createServerFn({ method: "GET" })
     const brainConfig = await getFirmBrainConfigByFirmId(firm.id);
     return {
       firms,
+      directory,
       selectedFirm: firm,
       brainConfig,
       selectionError: null,

@@ -38,6 +38,7 @@ export const tables = {
 
 export { getSql, setSqlForTests } from "./client.ts";
 export {
+  listFirmAdminDirectory,
   createFirm,
   deleteFirmBySlug,
   getFirmBySlug,
@@ -46,8 +47,10 @@ export {
   getFirmBookingPolicy,
   getFirmPricingPolicy,
   getFirmToneProfile,
+  recordFirmPageVisit,
   listActiveFirmServices,
   listActiveFirms,
+  type FirmAdminDirectoryItem,
   type FirmInactive,
   type FirmNotFound,
 } from "./firms.ts";

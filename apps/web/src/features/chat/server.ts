@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { FirmAgentProfile, FirmBrainConfig } from "@leadpilot/shared";
-import { getFirmBrainConfigByFirmId, getFirmProfileBySlug } from "@leadpilot/db";
+import { getFirmBrainConfigByFirmId, getFirmProfileBySlug, recordFirmPageVisit } from "@leadpilot/db";
 import { parseFirmSlugRequest } from "../firms/validators";
 
 export const loadAskFirmPageState = createServerFn({ method: "GET" })
@@ -10,6 +10,7 @@ export const loadAskFirmPageState = createServerFn({ method: "GET" })
     if ("kind" in profile) {
       return { firmProfile: null, brainConfig: null };
     }
+    void recordFirmPageVisit({ firmId: profile.firm.id, pageKey: "ask" }).catch(() => undefined);
     const brainConfig = await getFirmBrainConfigByFirmId(profile.firm.id);
 
     return { firmProfile: profile, brainConfig };

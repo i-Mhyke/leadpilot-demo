@@ -29,6 +29,13 @@ const fieldClassName =
 
 type MarkdownUploadResult = Pick<FirmKnowledgeUploadResult, "contentHash" | "revision">;
 
+export type FirmAdminStats = {
+  conversationsTotal: number;
+  askPageVisits: number;
+  dashboardPageVisits: number;
+  lastVisitAt?: string;
+};
+
 async function readFileText(file: File): Promise<string> {
   if (typeof file.text === "function") {
     return file.text();
@@ -363,13 +370,25 @@ function TenantCreationCard(props: { onCreated?: (firm: Firm) => void }) {
 function FirmWorkspaceCard(props: {
   firm: Firm;
   brainConfig: FirmBrainConfig | null;
+  stats?: FirmAdminStats | null;
   onDeleted?: () => void;
 }) {
   const [brainConfig, setBrainConfig] = useState<FirmBrainConfig | null>(props.brainConfig);
+  const [showUploads, setShowUploads] = useState(false);
 
   useEffect(() => {
     setBrainConfig(props.brainConfig);
   }, [props.brainConfig]);
+
+  useEffect(() => {
+    setShowUploads(false);
+  }, [props.firm.slug]);
+
+  const stats = props.stats ?? {
+    conversationsTotal: 0,
+    askPageVisits: 0,
+    dashboardPageVisits: 0,
+  };
 
   return (
     <section className="border-border/60 bg-card rounded-[28px] border p-5 shadow-[0_16px_40px_rgba(18,34,42,0.06)] sm:p-6">
@@ -388,6 +407,31 @@ function FirmWorkspaceCard(props: {
         </code>
       </div>
 
+      <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
+          <dt className="text-muted-foreground text-xs uppercase tracking-[0.12em]">Ask visits</dt>
+          <dd className="text-foreground mt-1 text-2xl font-semibold tracking-tight">
+            {stats.askPageVisits}
+          </dd>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
+          <dt className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+            Dashboard visits
+          </dt>
+          <dd className="text-foreground mt-1 text-2xl font-semibold tracking-tight">
+            {stats.dashboardPageVisits}
+          </dd>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
+          <dt className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+            Conversations
+          </dt>
+          <dd className="text-foreground mt-1 text-2xl font-semibold tracking-tight">
+            {stats.conversationsTotal}
+          </dd>
+        </div>
+      </dl>
+
       <div className="mt-4 flex flex-wrap gap-2">
         <Button asChild className="rounded-full px-4">
           <Link to="/dashboard/$firmSlug" params={{ firmSlug: props.firm.slug }}>
@@ -399,29 +443,43 @@ function FirmWorkspaceCard(props: {
             Open ask page
           </Link>
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full px-4"
+          onClick={() => setShowUploads((current) => !current)}
+        >
+          {showUploads ? "Hide updates" : "Update knowledge & brain"}
+        </Button>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <MarkdownUploadCard<FirmKnowledgeUploadResult>
-          inputId={`knowledge-base-upload-${props.firm.slug}`}
-          title="Knowledge base upload"
-          description="Upload the pre-processed company knowledge base markdown. This keeps the existing KB ingestion, embedding, and publish path."
-          helperText="Choose a .md file with public company information."
-          buttonLabel="Save knowledge base"
-          firmSlug={props.firm.slug}
-          uploadServerFn={uploadFirmKnowledgeProvisioning}
-        />
-        <MarkdownUploadCard<FirmBrainConfig>
-          inputId={`brain-upload-${props.firm.slug}`}
-          title="Firm brain upload"
-          description="Upload the structured brain markdown. It compiles into the live control-plane brain for new conversations."
-          helperText="Choose a structured .md file with the firm brain template."
-          buttonLabel="Save brain"
-          firmSlug={props.firm.slug}
-          uploadServerFn={saveFirmBrainProvisioning}
-          onSuccess={(result) => setBrainConfig(result)}
-        />
-      </div>
+      {showUploads ? (
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <MarkdownUploadCard<FirmKnowledgeUploadResult>
+            inputId={`knowledge-base-upload-${props.firm.slug}`}
+            title="Knowledge base upload"
+            description="Upload the pre-processed company knowledge base markdown. This keeps the existing KB ingestion, embedding, and publish path."
+            helperText="Choose a .md file with public company information."
+            buttonLabel="Save knowledge base"
+            firmSlug={props.firm.slug}
+            uploadServerFn={uploadFirmKnowledgeProvisioning}
+          />
+          <MarkdownUploadCard<FirmBrainConfig>
+            inputId={`brain-upload-${props.firm.slug}`}
+            title="Firm brain upload"
+            description="Upload the structured brain markdown. It compiles into the live control-plane brain for new conversations."
+            helperText="Choose a structured .md file with the firm brain template."
+            buttonLabel="Save brain"
+            firmSlug={props.firm.slug}
+            uploadServerFn={saveFirmBrainProvisioning}
+            onSuccess={(result) => setBrainConfig(result)}
+          />
+        </div>
+      ) : (
+        <p className="text-muted-foreground mt-4 text-sm leading-relaxed">
+          Click Update knowledge &amp; brain to open the existing upload flow.
+        </p>
+      )}
 
       <BrainReadoutCard brainConfig={brainConfig} />
       <FirmDeleteSection firm={props.firm} onDeleted={props.onDeleted} />
@@ -456,6 +514,7 @@ export function FirmProvisioningCard(props: {
   mode?: "create" | "details";
   firm?: Firm | null;
   brainConfig?: FirmBrainConfig | null;
+  stats?: FirmAdminStats | null;
   selectionError?: string | null;
   onCreated?: (firm: Firm) => void;
   onDeleted?: () => void;
@@ -469,11 +528,25 @@ export function FirmProvisioningCard(props: {
       return <FirmSelectionEmptyState selectionError={props.selectionError ?? null} />;
     }
 
-    return <FirmWorkspaceCard firm={firm} brainConfig={props.brainConfig ?? null} onDeleted={props.onDeleted} />;
+    return (
+      <FirmWorkspaceCard
+        firm={firm}
+        brainConfig={props.brainConfig ?? null}
+        stats={props.stats ?? null}
+        onDeleted={props.onDeleted}
+      />
+    );
   }
 
   if (firm) {
-    return <FirmWorkspaceCard firm={firm} brainConfig={null} onDeleted={props.onDeleted} />;
+    return (
+      <FirmWorkspaceCard
+        firm={firm}
+        brainConfig={null}
+        stats={props.stats ?? null}
+        onDeleted={props.onDeleted}
+      />
+    );
   }
 
   return (

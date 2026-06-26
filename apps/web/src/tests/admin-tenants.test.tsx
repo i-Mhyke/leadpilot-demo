@@ -13,7 +13,7 @@ const serverFns = vi.hoisted(() => ({
 }));
 
 const routeState = vi.hoisted(() => ({
-  search: {} as { firmSlug?: string; mode?: "add" },
+  search: {} as { firmSlug?: string; mode?: "add"; country?: string; sector?: string },
   navigate: vi.fn() as Mock,
 }));
 
@@ -30,6 +30,7 @@ vi.mock("@tanstack/react-start", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => () => ({}),
+  useNavigate: () => routeState.navigate,
   getRouteApi: () => ({
     useNavigate: () => routeState.navigate,
     useSearch: () => routeState.search,
@@ -109,6 +110,22 @@ describe("AdminTenantsPage", () => {
           status: "active",
         },
       ],
+      directory: [
+        {
+          firm: {
+            id: "firm-1",
+            name: "Acme Law",
+            slug: "acme-law",
+            industry: "legal",
+            jurisdiction: "Nigeria",
+            status: "active",
+          },
+          conversationsTotal: 4,
+          askPageVisits: 2,
+          dashboardPageVisits: 1,
+          lastVisitAt: "2026-06-24T00:00:00.000Z",
+        },
+      ],
       selectedFirm: null,
       brainConfig: null,
       selectionError: null,
@@ -118,10 +135,14 @@ describe("AdminTenantsPage", () => {
 
     expect(screen.getByText(/^admin surface$/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /provision tenant workspaces/i })).toBeInTheDocument();
-    expect(screen.getByText(/existing firms/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /add/i })).toHaveAttribute("href", "/admin/tenants?mode=add");
+    expect(screen.getByText(/firm directory/i)).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /add/i })).toHaveAttribute(
+      "href",
+      "/admin/tenants?mode=add",
+    );
     expect(await screen.findByText(/acme law/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /select a firm/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /visits/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /conversations/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /back to home/i })).toHaveAttribute("href", "/");
   });
 
@@ -129,6 +150,7 @@ describe("AdminTenantsPage", () => {
     routeState.search = { mode: "add" };
     serverFns.loadPage.mockResolvedValue({
       firms: [],
+      directory: [],
       selectedFirm: null,
       brainConfig: null,
       selectionError: null,
@@ -137,7 +159,7 @@ describe("AdminTenantsPage", () => {
     render(<AdminTenantsPage />);
 
     expect(await screen.findByLabelText(/business name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/country/i)).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/country/i)).toHaveLength(2);
     expect(screen.getByRole("button", { name: /create tenant/i })).toBeInTheDocument();
   });
 
@@ -152,6 +174,22 @@ describe("AdminTenantsPage", () => {
           industry: "consulting",
           jurisdiction: "United Kingdom",
           status: "active",
+        },
+      ],
+      directory: [
+        {
+          firm: {
+            id: "firm-2",
+            name: "Northline Advisory",
+            slug: "northline-advisory",
+            industry: "consulting",
+            jurisdiction: "United Kingdom",
+            status: "active",
+          },
+          conversationsTotal: 7,
+          askPageVisits: 5,
+          dashboardPageVisits: 2,
+          lastVisitAt: "2026-06-24T00:00:00.000Z",
         },
       ],
       selectedFirm: {
@@ -186,7 +224,10 @@ describe("AdminTenantsPage", () => {
     render(<AdminTenantsPage />);
 
     expect(await screen.findByRole("heading", { name: /live brain readout/i })).toBeInTheDocument();
+    expect(screen.getByText(/ask 5 · dashboard 2/i)).toBeInTheDocument();
+    expect(screen.getAllByText("7")).toHaveLength(3);
     expect(screen.getByText(/northline advisory is a consulting firm/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /update knowledge & brain/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /delete firm/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open dashboard/i })).toHaveAttribute(
       "href",
@@ -207,6 +248,22 @@ describe("AdminTenantsPage", () => {
           industry: "consulting",
           jurisdiction: "United Kingdom",
           status: "active",
+        },
+      ],
+      directory: [
+        {
+          firm: {
+            id: "firm-2",
+            name: "Northline Advisory",
+            slug: "northline-advisory",
+            industry: "consulting",
+            jurisdiction: "United Kingdom",
+            status: "active",
+          },
+          conversationsTotal: 7,
+          askPageVisits: 5,
+          dashboardPageVisits: 2,
+          lastVisitAt: "2026-06-24T00:00:00.000Z",
         },
       ],
       selectedFirm: {

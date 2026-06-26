@@ -4,6 +4,7 @@ import {
   getFirmDashboardOverviewBySlug,
   listFirmBookingRequestItemsBySlug,
   listFirmConversationLeadsBySlug,
+  recordFirmPageVisit,
 } from "@leadpilot/db";
 import type {
   FirmBookingDetailResult,
@@ -16,7 +17,13 @@ import { parseFirmConversationRequest, parseFirmSlugRequest } from "./validators
 export const getFirmDashboardOverview = createServerFn({ method: "GET" })
   .validator((data: unknown) => parseFirmSlugRequest(data))
   .handler(async ({ data }): Promise<FirmDashboardResult> => {
-    return getFirmDashboardOverviewBySlug(data.firmSlug);
+    const result = await getFirmDashboardOverviewBySlug(data.firmSlug);
+    if (result.kind === "ok") {
+      void recordFirmPageVisit({ firmId: result.overview.firm.id, pageKey: "dashboard" }).catch(
+        () => undefined,
+      );
+    }
+    return result;
   });
 
 export const getFirmConversationLeads = createServerFn({ method: "GET" })

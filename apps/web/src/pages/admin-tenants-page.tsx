@@ -1,77 +1,276 @@
 import { useEffect, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import type { Firm } from "@leadpilot/shared";
-import { FirmProvisioningCard } from "@/features/firms/tenant-provisioning-card";
+import { ClickableTableRow } from "@/features/dashboard/components/clickable-table-row";
+import {
+  FirmProvisioningCard,
+  type FirmAdminStats,
+} from "@/features/firms/tenant-provisioning-card";
 import {
   loadFirmProvisioningPageState,
   type FirmProvisioningPageState,
 } from "@/features/firms/server";
+import { FIRM_INDUSTRY_OPTIONS, FIRM_JURISDICTION_OPTIONS } from "@/features/firms/validators";
 
 const adminTenantsRoute = getRouteApi("/admin/tenants");
 
-function AdminSidebar(props: {
-  firms: Firm[];
+type AdminTenantsSearch = {
+  firmSlug?: string;
+  mode?: "add";
+  country?: string;
+  sector?: (typeof FIRM_INDUSTRY_OPTIONS)[number];
+};
+
+type AdminDirectoryRow = FirmProvisioningPageState["directory"][number];
+
+const INDUSTRY_LABELS: Record<(typeof FIRM_INDUSTRY_OPTIONS)[number], string> = {
+  legal: "Legal",
+  healthcare: "Healthcare",
+  accounting: "Accounting",
+  consulting: "Consulting",
+  real_estate: "Real estate",
+  general: "General",
+};
+
+const COUNTRY_LABEL_BY_CODE = new Map<string, string>(
+  FIRM_JURISDICTION_OPTIONS.map((option) => [option.code, option.name]),
+);
+
+function getCountryLabel(code?: string | null) {
+  if (!code) return "All countries";
+  return COUNTRY_LABEL_BY_CODE.get(code) ?? code;
+}
+
+function getIndustryLabel(industry?: string | null) {
+  if (!industry) return "All sectors";
+  return INDUSTRY_LABELS[industry as (typeof FIRM_INDUSTRY_OPTIONS)[number]] ?? industry;
+}
+
+function createSearchUpdater(
+  navigate: ReturnType<typeof adminTenantsRoute.useNavigate>,
+  search: AdminTenantsSearch,
+) {
+  return (patch: Partial<AdminTenantsSearch>) => {
+    void navigate({
+      to: "/admin/tenants",
+      search: () => ({ ...search, ...patch }),
+      replace: true,
+    });
+  };
+}
+
+function AdminDirectoryTable(props: {
+  directory: AdminDirectoryRow[];
   activeSlug: string | null;
+  search: AdminTenantsSearch;
+  onSearchPatch: (patch: Partial<AdminTenantsSearch>) => void;
 }) {
+  const visibleDirectory = props.directory.filter((entry) => {
+    if (props.search.country && entry.firm.jurisdiction !== props.search.country) {
+      return false;
+    }
+    if (props.search.sector && entry.firm.industry !== props.search.sector) {
+      return false;
+    }
+    return true;
+  });
+
+  const availableCountries = Array.from(
+    new Map(
+      props.directory
+        .map((entry) => entry.firm.jurisdiction)
+        .filter((country): country is string => Boolean(country))
+        .map((country) => [country, getCountryLabel(country)] as const),
+    ).entries(),
+  )
+    .map(([code, label]) => ({ code, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const availableSectors = Array.from(
+    new Set(props.directory.map((entry) => entry.firm.industry)),
+  ).sort((a, b) => getIndustryLabel(a).localeCompare(getIndustryLabel(b)));
+
+  const hasFilters = Boolean(props.search.country || props.search.sector);
+
   return (
-    <aside className="border-border/70 bg-card rounded-[28px] border p-4 shadow-[0_16px_40px_rgba(18,34,42,0.06)]">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-foreground text-sm font-semibold tracking-tight">Existing firms</p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Select a firm or switch to add mode.
+    <section className="border-border/70 bg-card rounded-[28px] border p-4 shadow-[0_16px_40px_rgba(18,34,42,0.06)] sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-foreground text-sm font-semibold tracking-tight">Firm directory</p>
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+            Filter by country and sector, then select a firm to open its detail drawer.
           </p>
         </div>
         <Link
           to="/admin/tenants"
-          search={() => ({ mode: "add" as const })}
+          search={(current) => ({ ...current, mode: "add" as const, firmSlug: undefined })}
           className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center rounded-full px-3 py-2 text-xs font-medium shadow-sm transition"
         >
           Add
         </Link>
       </div>
 
-      <div className="mt-4 space-y-2">
-        {props.firms.length ? (
-          props.firms.map((firm) => {
-            const isActive = firm.slug === props.activeSlug;
-            return (
-              <Link
-                key={firm.id}
-                to="/admin/tenants"
-                search={() => ({ firmSlug: firm.slug } as const)}
-                className={[
-                  "block rounded-2xl border px-3 py-3 transition",
-                  isActive
-                    ? "border-primary/30 bg-primary/10"
-                    : "border-border/60 bg-background hover:bg-accent",
-                ].join(" ")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-foreground truncate text-sm font-medium">{firm.name}</p>
-                    <p className="text-muted-foreground mt-1 truncate text-xs uppercase tracking-[0.12em]">
-                      {firm.industry}
-                    </p>
-                  </div>
-                  <code className="bg-muted/70 text-foreground rounded-full px-2 py-1 font-mono text-[11px]">
-                    {firm.slug}
-                  </code>
-                </div>
-              </Link>
-            );
-          })
-        ) : (
-          <div className="border-border/60 bg-muted/20 rounded-2xl border px-3 py-4">
-            <p className="text-sm font-medium">No firms yet</p>
-            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-              Use Add to create the first tenant.
-            </p>
-          </div>
-        )}
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <label className="space-y-2">
+          <span className="text-muted-foreground text-xs font-medium uppercase tracking-[0.12em]">
+            Country
+          </span>
+          <select
+            className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            value={props.search.country ?? ""}
+            onChange={(event) =>
+              props.onSearchPatch({
+                country: event.target.value || undefined,
+              })
+            }
+            >
+            <option value="">All countries</option>
+            {availableCountries.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-muted-foreground text-xs font-medium uppercase tracking-[0.12em]">
+            Sector
+          </span>
+          <select
+            className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            value={props.search.sector ?? ""}
+            onChange={(event) =>
+              props.onSearchPatch({
+                sector: event.target.value ? (event.target.value as AdminTenantsSearch["sector"]) : undefined,
+              })
+            }
+          >
+            <option value="">All sectors</option>
+            {availableSectors.map((sector) => (
+              <option key={sector} value={sector}>
+                {getIndustryLabel(sector)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="flex items-end gap-2">
+          {hasFilters ? (
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground inline-flex h-10 items-center rounded-full border border-border/70 px-4 text-sm transition"
+              onClick={() => props.onSearchPatch({ country: undefined, sector: undefined })}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
       </div>
-    </aside>
+
+      <div className="mt-4 overflow-x-auto rounded-[24px] border border-border/60">
+        <table className="min-w-full border-separate border-spacing-0">
+          <thead className="bg-muted/30">
+            <tr>
+              <th className="text-muted-foreground px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em]">
+                Firm
+              </th>
+              <th className="text-muted-foreground px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em]">
+                Country
+              </th>
+              <th className="text-muted-foreground px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em]">
+                Sector
+              </th>
+              <th className="text-muted-foreground px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em]">
+                Visits
+              </th>
+              <th className="text-muted-foreground px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.14em]">
+                Conversations
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.directory.length === 0 ? (
+              <tr>
+                <td className="px-4 py-6 text-sm text-muted-foreground" colSpan={5}>
+                  No firms yet. Use Add to create the first tenant.
+                </td>
+              </tr>
+            ) : visibleDirectory.length ? (
+              visibleDirectory.map((entry) => {
+                const isActive = entry.firm.slug === props.activeSlug;
+                return (
+                  <ClickableTableRow
+                    key={entry.firm.id}
+                    to="/admin/tenants"
+                    params={{}}
+                    search={{
+                      firmSlug: entry.firm.slug,
+                      country: props.search.country,
+                      sector: props.search.sector,
+                    }}
+                    className={[
+                      "border-t border-border/50",
+                      isActive ? "bg-primary/5" : "hover:bg-accent/50",
+                    ].join(" ")}
+                  >
+                    <td className="px-4 py-4 align-top">
+                      <div className="min-w-0">
+                        <p className="text-foreground truncate text-sm font-medium">{entry.firm.name}</p>
+                        <p className="text-muted-foreground mt-1 truncate text-xs font-mono">
+                          {entry.firm.slug}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="text-muted-foreground px-4 py-4 align-top text-sm">
+                      {getCountryLabel(entry.firm.jurisdiction)}
+                    </td>
+                    <td className="text-muted-foreground px-4 py-4 align-top text-sm">
+                      {getIndustryLabel(entry.firm.industry)}
+                    </td>
+                    <td className="px-4 py-4 align-top text-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-foreground text-sm font-medium">
+                          {entry.askPageVisits + entry.dashboardPageVisits}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Ask {entry.askPageVisits} · Dashboard {entry.dashboardPageVisits}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="text-foreground px-4 py-4 align-top text-sm font-medium">
+                      {entry.conversationsTotal}
+                    </td>
+                  </ClickableTableRow>
+                );
+              })
+            ) : (
+              <tr>
+                <td className="px-4 py-6 text-sm text-muted-foreground" colSpan={5}>
+                  No firms match the selected filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function AdminSidebar(props: {
+  firms: AdminDirectoryRow[];
+  activeSlug: string | null;
+  search: AdminTenantsSearch;
+  onSearchPatch: (patch: Partial<AdminTenantsSearch>) => void;
+}) {
+  return (
+    <AdminDirectoryTable
+      directory={props.firms}
+      activeSlug={props.activeSlug}
+      search={props.search}
+      onSearchPatch={props.onSearchPatch}
+    />
   );
 }
 
@@ -105,9 +304,20 @@ export function AdminTenantsPage() {
     return () => {
       isCurrent = false;
     };
-  }, [loadPageState, search.firmSlug, search.mode]);
+  }, [loadPageState, search.country, search.firmSlug, search.mode, search.sector]);
 
   const isAddMode = search.mode === "add";
+  const updateSearch = createSearchUpdater(navigate, search);
+  const selectedDirectoryEntry =
+    pageState?.directory.find((entry) => entry.firm.slug === search.firmSlug) ?? null;
+  const selectedFirmStats: FirmAdminStats | null = selectedDirectoryEntry
+    ? {
+        conversationsTotal: selectedDirectoryEntry.conversationsTotal,
+        askPageVisits: selectedDirectoryEntry.askPageVisits,
+        dashboardPageVisits: selectedDirectoryEntry.dashboardPageVisits,
+        lastVisitAt: selectedDirectoryEntry.lastVisitAt,
+      }
+    : null;
 
   return (
     <main className="page space-y-8">
@@ -115,8 +325,8 @@ export function AdminTenantsPage() {
         <div className="eyebrow">Admin surface</div>
         <h1 className="title max-w-2xl">Provision tenant workspaces</h1>
         <p className="lede max-w-2xl">
-          Select a firm from the sidebar to inspect its live brain and uploads. Use Add to create a
-          new tenant, with the selected firm persisted in the URL.
+          Browse the firm directory, inspect visits and conversations in the side panel, and use
+          Add to create a new tenant with the selected firm persisted in the URL.
         </p>
 
         <div className="flex flex-wrap gap-3 pt-2">
@@ -136,9 +346,7 @@ export function AdminTenantsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <AdminSidebar firms={pageState?.firms ?? []} activeSlug={search.firmSlug ?? null} />
-
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
         <div className="space-y-4">
           {loadError ? (
             <section className="border-border/60 bg-card rounded-[28px] border p-5 text-sm text-destructive">
@@ -151,22 +359,42 @@ export function AdminTenantsPage() {
               Loading tenant workspace...
             </section>
           ) : (
+            <AdminSidebar
+              firms={pageState?.directory ?? []}
+              activeSlug={search.firmSlug ?? null}
+              search={search}
+              onSearchPatch={updateSearch}
+            />
+          )}
+        </div>
+
+        <div className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+          {isLoading && !pageState ? null : (
             <FirmProvisioningCard
               mode={isAddMode ? "create" : "details"}
               firm={pageState?.selectedFirm ?? null}
               brainConfig={pageState?.brainConfig ?? null}
+              stats={selectedFirmStats}
               selectionError={pageState?.selectionError ?? null}
               onCreated={(firm) => {
                 navigate({
                   to: "/admin/tenants",
-                  search: () => ({ firmSlug: firm.slug }),
+                  search: () => ({
+                    firmSlug: firm.slug,
+                    country: search.country,
+                    sector: search.sector,
+                  }),
                   replace: true,
                 });
               }}
               onDeleted={() => {
                 navigate({
                   to: "/admin/tenants",
-                  search: () => ({ mode: "add" as const }),
+                  search: () => ({
+                    mode: "add" as const,
+                    country: search.country,
+                    sector: search.sector,
+                  }),
                   replace: true,
                 });
               }}

@@ -64,6 +64,21 @@ type FirmSlugRow = {
   slug: string;
 };
 
+type FirmAdminDirectoryRow = FirmRow & {
+  conversations_total: string;
+  ask_page_visits: string;
+  dashboard_page_visits: string;
+  last_visit_at: string | null;
+};
+
+export interface FirmAdminDirectoryItem {
+  firm: Firm;
+  conversationsTotal: number;
+  askPageVisits: number;
+  dashboardPageVisits: number;
+  lastVisitAt?: string;
+}
+
 function mapFirm(row: FirmRow): Firm {
   return {
     id: row.id,
@@ -262,6 +277,69 @@ export async function listActiveFirms(): Promise<Firm[]> {
     ORDER BY name ASC
   `);
   return rows.map(mapFirm);
+}
+
+export async function listFirmAdminDirectory(input: {
+  country?: string;
+  sector?: Firm["industry"];
+} = {}): Promise<FirmAdminDirectoryItem[]> {
+  const sql = getSql();
+  const rows = toRows<FirmAdminDirectoryRow>(await sql`
+    SELECT
+      f.id,
+      f.name,
+      f.slug,
+      f.industry,
+      f.jurisdiction,
+      f.website_url,
+      f.status,
+      COALESCE((
+        SELECT COUNT(*)::text
+        FROM conversations c
+        WHERE c.firm_id = f.id
+      ), '0') AS conversations_total,
+      COALESCE((
+        SELECT COUNT(*)::text
+        FROM firm_page_visits v
+        WHERE v.firm_id = f.id
+          AND v.page_key = 'ask'
+      ), '0') AS ask_page_visits,
+      COALESCE((
+        SELECT COUNT(*)::text
+        FROM firm_page_visits v
+        WHERE v.firm_id = f.id
+          AND v.page_key = 'dashboard'
+      ), '0') AS dashboard_page_visits,
+      (
+        SELECT MAX(v.created_at)
+        FROM firm_page_visits v
+        WHERE v.firm_id = f.id
+      ) AS last_visit_at
+    FROM firms f
+    WHERE f.status = 'active'
+      AND (${input.country ?? null}::text IS NULL OR f.jurisdiction = ${input.country ?? null})
+      AND (${input.sector ?? null}::text IS NULL OR f.industry = ${input.sector ?? null})
+    ORDER BY f.name ASC
+  `);
+
+  return rows.map((row) => ({
+    firm: mapFirm(row),
+    conversationsTotal: Number(row.conversations_total ?? 0),
+    askPageVisits: Number(row.ask_page_visits ?? 0),
+    dashboardPageVisits: Number(row.dashboard_page_visits ?? 0),
+    lastVisitAt: row.last_visit_at ?? undefined,
+  }));
+}
+
+export async function recordFirmPageVisit(input: {
+  firmId: string;
+  pageKey: "ask" | "dashboard";
+}): Promise<void> {
+  const sql = getSql();
+  await sql`
+    INSERT INTO firm_page_visits (firm_id, page_key)
+    VALUES (${input.firmId}, ${input.pageKey})
+  `;
 }
 
 export async function getFirmProfile(firmId: string): Promise<FirmAgentProfile | null> {

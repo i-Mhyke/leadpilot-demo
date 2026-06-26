@@ -7,6 +7,7 @@ import {
   parseFirmBrainUploadRequest,
   parseFirmKnowledgeUploadRequest,
   parseFirmProvisioningRequest,
+  parseFirmProvisioningSearchRequest,
 } from "./validators";
 
 describe("firm provisioning validators", () => {
@@ -77,6 +78,20 @@ describe("firm provisioning validators", () => {
         slug: "northline-advisory",
       }),
     ).toThrowError(/Unexpected field/i);
+  });
+
+  it("accepts firm directory search filters", () => {
+    expect(
+      parseFirmProvisioningSearchRequest({
+        country: "NG",
+        sector: "consulting",
+        mode: "add",
+      }),
+    ).toEqual({
+      country: "Nigeria",
+      sector: "consulting",
+      mode: "add",
+    });
   });
 
   it("exposes the supported industries for the form", () => {

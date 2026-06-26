@@ -111,6 +111,8 @@ describe("FirmProvisioningCard", () => {
       "href",
       "/ask/northline-advisory",
     );
+    expect(screen.getByRole("button", { name: /update knowledge & brain/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /update knowledge & brain/i }));
     expect(screen.getByRole("heading", { name: /knowledge base upload/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /firm brain upload/i })).toBeInTheDocument();
   }

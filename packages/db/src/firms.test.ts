@@ -1,6 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { setSqlForTests } from "./client.ts";
-import { createFirm, deleteFirmBySlug, getFirmBookingPolicy, getFirmPricingPolicy } from "./firms.ts";
+import {
+  createFirm,
+  deleteFirmBySlug,
+  getFirmBookingPolicy,
+  getFirmPricingPolicy,
+  listFirmAdminDirectory,
+  recordFirmPageVisit,
+} from "./firms.ts";
 
 describe("firm policies", () => {
   beforeEach(() => {
@@ -215,5 +222,60 @@ describe("firm deletion", () => {
     const second = await deleteFirmBySlug("harbor-vale-legal");
 
     expect(second).toEqual({ kind: "not_found", slug: "harbor-vale-legal" });
+  });
+});
+
+describe("firm admin directory", () => {
+  beforeEach(() => {
+    setSqlForTests(null);
+  });
+
+  it("lists active firms with filtered visit and conversation counts", async () => {
+    const sql = vi.fn(async (_strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> => [
+      {
+        id: "firm-1",
+        name: "Northline Advisory",
+        slug: "northline-advisory",
+        industry: "consulting",
+        jurisdiction: "United Kingdom",
+        website_url: null,
+        status: "active",
+        conversations_total: "8",
+        ask_page_visits: "3",
+        dashboard_page_visits: "2",
+        last_visit_at: "2026-06-25T12:00:00.000Z",
+      },
+    ]);
+    setSqlForTests(sql as never);
+
+    const rows = await listFirmAdminDirectory({ country: "United Kingdom", sector: "consulting" });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      firm: {
+        slug: "northline-advisory",
+        jurisdiction: "United Kingdom",
+      },
+      conversationsTotal: 8,
+      askPageVisits: 3,
+      dashboardPageVisits: 2,
+      lastVisitAt: "2026-06-25T12:00:00.000Z",
+    });
+    const firstQuery = String((sql.mock.calls[0] as unknown as [TemplateStringsArray])?.[0] ?? "");
+    expect(firstQuery).toContain("firm_page_visits");
+    expect(firstQuery).toContain("f.status = 'active'");
+    expect(firstQuery).toContain("f.industry =");
+  });
+
+  it("records a page visit for the selected firm and page", async () => {
+    const sql = vi.fn(async () => []);
+    setSqlForTests(sql as never);
+
+    await recordFirmPageVisit({ firmId: "firm-1", pageKey: "ask" });
+
+    expect(sql).toHaveBeenCalledTimes(1);
+    const firstQuery = String((sql.mock.calls[0] as unknown as [TemplateStringsArray])?.[0] ?? "");
+    expect(firstQuery).toContain("INSERT INTO firm_page_visits");
+    expect(firstQuery).toContain("page_key");
   });
 });

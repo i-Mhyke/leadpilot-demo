@@ -8,18 +8,20 @@ import { DASHBOARD_MOTION } from "../dashboard-utils";
 export function ClickableTableRow({
   to,
   params,
+  search,
   className,
   children,
 }: {
   to: string;
   params: Record<string, string>;
+  search?: Record<string, string | undefined>;
   className?: string;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
 
   function openRow() {
-    void navigate({ to, params });
+    void navigate({ to, params, search });
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTableRowElement>) {

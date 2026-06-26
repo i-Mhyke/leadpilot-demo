@@ -18,7 +18,7 @@ export { FIRM_JURISDICTION_OPTIONS };
 
 const ALLOWED_FIELDS = new Set(["name", "industry", "jurisdiction"]);
 const ALLOWED_UPLOAD_FIELDS = new Set(["firmSlug", "filename", "contentMarkdown"]);
-const ALLOWED_TENANT_SEARCH_FIELDS = new Set(["firmSlug", "mode"]);
+const ALLOWED_TENANT_SEARCH_FIELDS = new Set(["firmSlug", "mode", "country", "sector"]);
 
 export class FirmProvisioningRequestError extends Error {
   constructor(
@@ -65,6 +65,8 @@ export function parseFirmSlugRequest(data: unknown): { firmSlug: string } {
 export function parseFirmProvisioningSearchRequest(data: unknown): {
   firmSlug?: string;
   mode?: "add";
+  country?: string;
+  sector?: FirmIndustryOption;
 } {
   if (data === null || typeof data !== "object" || Array.isArray(data)) {
     throw new FirmProvisioningRequestError("invalid_payload", "Search params must be an object.");
@@ -80,7 +82,7 @@ export function parseFirmProvisioningSearchRequest(data: unknown): {
     }
   }
 
-  const search: { firmSlug?: string; mode?: "add" } = {};
+  const search: { firmSlug?: string; mode?: "add"; country?: string; sector?: FirmIndustryOption } = {};
 
   if (record.firmSlug !== undefined) {
     if (typeof record.firmSlug !== "string" || !record.firmSlug.trim()) {
@@ -94,6 +96,24 @@ export function parseFirmProvisioningSearchRequest(data: unknown): {
       throw new FirmProvisioningRequestError("invalid_mode", "mode must be add.");
     }
     search.mode = "add";
+  }
+
+  if (record.country !== undefined) {
+    if (typeof record.country !== "string") {
+      throw new FirmProvisioningRequestError("invalid_country", "Choose a supported country filter.");
+    }
+    const country = resolveFirmJurisdiction(record.country);
+    if (!country) {
+      throw new FirmProvisioningRequestError("invalid_country", "Choose a supported country filter.");
+    }
+    search.country = country;
+  }
+
+  if (record.sector !== undefined) {
+    if (typeof record.sector !== "string" || !isFirmIndustryOption(record.sector)) {
+      throw new FirmProvisioningRequestError("invalid_sector", "Choose a supported sector filter.");
+    }
+    search.sector = record.sector;
   }
 
   return search;
