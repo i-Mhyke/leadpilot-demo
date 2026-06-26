@@ -29,12 +29,11 @@ function RootComponent() {
         <Outlet />
       ) : (
         <div className="shell">
-          <header className="topbar">
-            <Link to="/" className="brand">
+          <header className={pathname === "/" ? "landing-topbar" : "topbar"}>
+            <Link to="/" className={pathname === "/" ? "landing-brand" : "brand"}>
               LeadPilot
             </Link>
-            <nav className="nav">
-              <Link to="/admin/tenants">Admin</Link>
+            <nav className={pathname === "/" ? "landing-nav" : "nav"}>
               <Link to="/ask/$firmSlug" params={{ firmSlug: "demo-law" }}>
                 Ask page
               </Link>

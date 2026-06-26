@@ -29,13 +29,14 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 describe("Home", () => {
-  it("routes tenant creation to the admin surface", () => {
+  it("renders the landing hero headline", () => {
     render(<Home />);
 
-    expect(screen.getByRole("link", { name: /open admin tenants/i })).toHaveAttribute(
-      "href",
-      "/admin/tenants",
-    );
+    expect(
+      screen.getByRole("heading", {
+        name: /turn every enquiry into a qualified lead/i,
+      }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/provision a tenant/i)).toBeNull();
   });
 });
